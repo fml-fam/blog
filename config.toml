@@ -1,0 +1,11 @@
+baseurl = "/"
+title = "fml blog"
+theme = "onetwothree"
+
+[params]
+    navigation = ["about.md"]
+    style = "3"
+    twitter = "wrathematics"
+
+[permalinks]
+    post = "/:year/:month/:day/:slug/"
