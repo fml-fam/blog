@@ -57,4 +57,11 @@ window.onload = ready;
   {{ .Content }}
 </div>
 
+<br>
+<p>
+{{ if .PrevInSection }}<a href="{{ .PrevInSection.URL }}">← {{ .PrevInSection.Title }}</a>&nbsp;{{else}}&nbsp;{{end}}
+{{ if .NextInSection }}<a href="{{ .NextInSection.URL }}" style="float:right;">{{ .NextInSection.Title }} →</a>{{ end }}
+</p>
+<br>
+
 {{ partial "footer.html" . }}
