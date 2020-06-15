@@ -1,0 +1,168 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+	<meta charset="utf-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1">
+	
+	<title>Calculating Matrix Condition Numbers</title>
+	
+	<meta name="description" content="">
+	<meta name="image" content="">
+	
+	<meta itemprop="name" content="Calculating Matrix Condition Numbers">
+	<meta itemprop="description" content="">
+	<meta itemprop="image" content="">
+	
+	<meta name="og:title" content="Calculating Matrix Condition Numbers">
+	<meta name="og:description" content="">
+	
+	<meta name="og:url" content="/2020/06/08/calculating-matrix-condition-numbers/">
+	<meta name="og:site_name" content="Calculating Matrix Condition Numbers">
+	<meta name="og:type" content="article">
+	
+	<meta name="article:author" content="wrathematics">
+	<meta name="article:tag" content="math ">
+	<link rel="stylesheet" type="text/css" href="/css/style3.css">
+	<script src="/js/caption.js"></script>
+</head>
+<body>
+
+<header >
+	<a href="/" style="float: left;color:#777;"><strong>fml blog</strong>
+	</a>
+	<a href="/index.xml" style="color:#777;float: left;"><strong>
+		&nbsp;
+	<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather feather-rss"><path d="M4 11a9 9 0 0 1 9 9"></path><path d="M4 4a16 16 0 0 1 16 16"></path><circle cx="5" cy="19" r="1"></circle></svg>
+</strong></a>
+<a href="/page/about/" style="color:#777;"><strong>About</strong></a>
+
+</header>
+
+
+<div id="loadingMask" style="width: 100%; height: 100%; position: fixed; background: #fff;"></div>
+<script>
+function fadeOut(el) {
+  el.style.opacity = 1;
+
+  var last = +new Date();
+  var tick = function() {
+    el.style.opacity = +el.style.opacity - (new Date() - last) / 80;
+    last = +new Date();
+    
+
+    if (el.style.opacity > 0) {
+      (window.requestAnimationFrame && requestAnimationFrame(tick)) || setTimeout(tick, 16);
+    } else {
+    	el.style.display='none';
+    }
+  };
+
+  tick();
+}
+
+function ready(fn) {
+    if (document.attachEvent ? document.readyState === "complete" : document.readyState !== "loading") {
+         el = document.getElementById('loadingMask');
+         fadeOut(el);
+        var elements = document.querySelectorAll("img");
+        Array.prototype.forEach.call(elements, function(el, i) {
+            if (el.getAttribute("alt")) {
+                const caption = document.createElement('figcaption');
+                var node = document.createTextNode(el.getAttribute("alt"));
+                caption.appendChild(node);
+                const wrapper = document.createElement('figure');
+                wrapper.className = 'image';
+                el.parentNode.insertBefore(wrapper, el);
+                el.parentNode.removeChild(el);
+                wrapper.appendChild(el);
+                wrapper.appendChild(caption);
+            }
+        });
+
+    } else {
+        document.addEventListener('DOMContentLoaded', fn);
+    }
+}
+window.onload = ready;
+</script>
+
+<div class="content">
+	<h1>Calculating Matrix Condition Numbers <aside><a href="/tags/math/" class="w3-tag">/math</a>&nbsp;&nbsp;&nbsp;</aside></h1>
+  
+  	<p><small><em>Written Mon, June 8, 2020. </em>
+  	</small></p>
+  
+  
+  <p>Throughout, we assume that all matrices are real-valued.</p>
+<p>The <a href="https://en.wikipedia.org/wiki/Condition_number#Matrices">condition number</a> of a matrix (relative to a norm) is an important concept in numerical analysis. If $A$ is square, then for any norm you would care about, the condition number $\kappa$ of $A$ is:</p>
+<p>$$\kappa(A) = \lVert A \rVert \cdot \lVert A^{-1} \rVert$$</p>
+<p>But in the much more typical case for data analysis where $A$ is non-square$, then we have:</p>
+<p>$$\kappa(A) = \lVert A \rVert \cdot \lVert A^+ \rVert$$</p>
+<p>where $A^+$ is a <a href="https://en.wikipedia.org/wiki/Moore%E2%80%93Penrose_inverse#Definition">pseudo inverse</a>. For the moment, we will assume that $A$ <strong>has more rows than columns</strong>, and we will use the left pseudo inverse:</p>
+<p>$$A^+ = \left(A^T A\right)^{-1} A^T$$</p>
+<p>There is a special case for the $l_2$ norm where the condition number $\kappa(A)$ is exactly the ratio of largest to smallest singular values. For other norms, we will use the <a href="https://en.wikipedia.org/wiki/QR_decomposition">QR factorization</a>. Factor $A=QR$, where $R$ is upper triangular, $Q^TQ = I$, and $\kappa(Q) = \kappa(Q^T) = 1$. Then</p>
+<p>$$
+\begin{align*}
+A^+ &amp;= \left(QR\right)^+ \\<br>
+&amp;= \left(\left(QR\right)^T \left(QR\right)\right)^{-1} \left(QR\right)^T \\<br>
+&amp;= \left(R^T R\right)^{-1} R^T Q^T \\<br>
+&amp;= R^{-1} \left(R^T\right)^{-1} R^T Q^T \\<br>
+&amp;= R^{-1} Q^T
+\end{align*}
+$$</p>
+<p>And so</p>
+<p>$$
+\begin{align*}
+\lVert A^+ \rVert &amp;= \lVert R^{-1} Q^T \rVert \\<br>
+&amp;= \lVert R^{-1} \rVert \cdot \lVert Q^T \rVert \\<br>
+&amp;= \lVert R^{-1} \rVert \cdot 1
+\end{align*}
+$$</p>
+<p>Which gives</p>
+<p>$$
+\begin{align*}
+\kappa(A) &amp;= \lVert A \rVert \cdot \lVert A^+ \rVert \\<br>
+&amp;= \lVert R \rVert \cdot \lVert R^{-1} \rVert
+\end{align*}
+$$</p>
+<p>A similar analysis shows that if $A$ has more columns than rows and $A = LQ$, that</p>
+<p>$$
+\begin{align*}
+\kappa(A) &amp;= \lVert L \rVert \cdot \lVert L^{-1} \rVert
+\end{align*}
+$$</p>
+<p>Of course, there is nothing mathematically preventing us from using QR (rather than LQ) in this case. But computationally, we want to pick whichever is cheaper.</p>
+<p>To implement this for CPU data, as in the fml CPU backend, you would want to use the LAPACK functions for this purpose. If the matrix is square, you factor it as $A=LU$ and use the <a href="https://www.netlib.org/lapack/explore-3.1.1-html/dgecon.f.html"><code>Xgecon()</code> function</a>. For non-square, then you use the analysis above and use the $R$/$L$ matrix (whichever is smaller) in the <a href="https://www.netlib.org/lapack/explore-3.1.1-html/dtrcon.f.html"><code>Xtrcon()</code> function</a> function. These actually estimate the reciprocal of the condition number, but that is good enough. This is how R&rsquo;s <a href="https://www.rdocumentation.org/packages/vcd/versions/1.4-7/topics/Kappa">kappa function</a> works, except that they do a QR on the transpose if the input matrix has more columns than rows. There are people in R core who know what an LQ factorization is, but they stubbornly refuse to acknowledge its existence for some reason.</p>
+<p>If you are using ScaLAPACK, as with the fml MPI backend, then you just use the ScaLAPACK variants of these functions, namely <a href="https://www.netlib.org/scalapack/explore-html/db/d61/pdgecon_8f_source.html"><code>pXgecon()</code></a> and <a href="https://www.netlib.org/scalapack/explore-html/d2/de5/pdtrcon_8f_source.html"><code>pXtrcon()</code></a>.</p>
+<p>For GPU programming, as with the fml GPU backend, the options are more limited. At the time of writing, to my knowledge, neither <a href="https://docs.nvidia.com/cuda/cusolver/index.html">cuSOLVER</a> nor <a href="https://icl.cs.utk.edu/magma/">MAGMA</a> offer any GPU <code>gecon()</code>/<code>trcon()</code> variants. So in fml, we actually just calculate the norm of $A$ and multiply it against $A^{-1}$ if $A$ is square, or the norm of $R^{-1}$/$L^{-1}$ otherwise.</p>
+
+</div>
+
+<br>
+<p>
+<a href="/2020/06/05/introducing-fmlr/">← Introducing fmlr</a>&nbsp;
+<a href="/2020/06/09/introducing-fml-the-fused-matrix-library/" style="float:right;">Introducing fml - the Fused Matrix Library →</a>
+</p>
+<br>
+
+
+<p style="color:grey;font-size:12px"><small>
+© 2020.
+Post content is <a href="http://creativecommons.org/licenses/by-sa/4.0/">CC-BY-SA</a>.
+Source code listings are <a href="http://creativecommons.org/publicdomain/zero/1.0/">CC0</a>.
+</small></p>
+
+<footer>
+  <script type="text/x-mathjax-config">
+    MathJax.Hub.Config({
+      tex2jax: {
+        inlineMath: [ ['$','$'], ["\\(","\\)"] ],
+        processEscapes: true
+      }
+    });
+  </script>
+  <script type="text/javascript" src="https://cdn.mathjax.org/mathjax/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML"></script>
+</footer>
+</body>
+</html>
+

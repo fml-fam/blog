@@ -1,0 +1,149 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+	<meta charset="utf-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1">
+	
+	<title>Introducing fmlr</title>
+	
+	<meta name="description" content="">
+	<meta name="image" content="">
+	
+	<meta itemprop="name" content="Introducing fmlr">
+	<meta itemprop="description" content="">
+	<meta itemprop="image" content="">
+	
+	<meta name="og:title" content="Introducing fmlr">
+	<meta name="og:description" content="">
+	
+	<meta name="og:url" content="/2020/06/05/introducing-fmlr/">
+	<meta name="og:site_name" content="Introducing fmlr">
+	<meta name="og:type" content="article">
+	
+	<meta name="article:author" content="wrathematics">
+	<meta name="article:tag" content="r ">
+	<link rel="stylesheet" type="text/css" href="/css/style3.css">
+	<script src="/js/caption.js"></script>
+</head>
+<body>
+
+<header >
+	<a href="/" style="float: left;color:#777;"><strong>fml blog</strong>
+	</a>
+	<a href="/index.xml" style="color:#777;float: left;"><strong>
+		&nbsp;
+	<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather feather-rss"><path d="M4 11a9 9 0 0 1 9 9"></path><path d="M4 4a16 16 0 0 1 16 16"></path><circle cx="5" cy="19" r="1"></circle></svg>
+</strong></a>
+<a href="/page/about/" style="color:#777;"><strong>About</strong></a>
+
+</header>
+
+
+<div id="loadingMask" style="width: 100%; height: 100%; position: fixed; background: #fff;"></div>
+<script>
+function fadeOut(el) {
+  el.style.opacity = 1;
+
+  var last = +new Date();
+  var tick = function() {
+    el.style.opacity = +el.style.opacity - (new Date() - last) / 80;
+    last = +new Date();
+    
+
+    if (el.style.opacity > 0) {
+      (window.requestAnimationFrame && requestAnimationFrame(tick)) || setTimeout(tick, 16);
+    } else {
+    	el.style.display='none';
+    }
+  };
+
+  tick();
+}
+
+function ready(fn) {
+    if (document.attachEvent ? document.readyState === "complete" : document.readyState !== "loading") {
+         el = document.getElementById('loadingMask');
+         fadeOut(el);
+        var elements = document.querySelectorAll("img");
+        Array.prototype.forEach.call(elements, function(el, i) {
+            if (el.getAttribute("alt")) {
+                const caption = document.createElement('figcaption');
+                var node = document.createTextNode(el.getAttribute("alt"));
+                caption.appendChild(node);
+                const wrapper = document.createElement('figure');
+                wrapper.className = 'image';
+                el.parentNode.insertBefore(wrapper, el);
+                el.parentNode.removeChild(el);
+                wrapper.appendChild(el);
+                wrapper.appendChild(caption);
+            }
+        });
+
+    } else {
+        document.addEventListener('DOMContentLoaded', fn);
+    }
+}
+window.onload = ready;
+</script>
+
+<div class="content">
+	<h1>Introducing fmlr <aside><a href="/tags/r/" class="w3-tag">/r</a>&nbsp;&nbsp;&nbsp;</aside></h1>
+  
+  	<p><small><em>Written Fri, June 5, 2020. </em>
+  	</small></p>
+  
+  
+  <p>not compare</p>
+<p>For one, I think this shows that I&rsquo;ve been thinking about this for a long time. And the approach here may seem very strange, but it&rsquo;s for a good reason. And two, this approach isn&rsquo;t really &ldquo;better&rdquo; or &ldquo;worse&rdquo; than another. It comes with advantages and disadvantages.</p>
+<h2 id="philosophy-and-similar-projects">Philosophy and Similar Projects</h2>
+<p>Some similar C/C++ projects worth mentioning:</p>
+<ul>
+<li><a href="http://arma.sourceforge.net/">Armadillo</a></li>
+<li><a href="http://eigen.tuxfamily.org/">Eigen</a></li>
+<li><a href="http://www.boost.org/">Boost</a></li>
+<li><a href="https://www.mcs.anl.gov/petsc/">PETSc</a></li>
+<li><a href="https://www.gnu.org/software/gsl/">GSL</a></li>
+</ul>
+<p>Some similar R projects worth mentioning:</p>
+<ul>
+<li>Martin Maechler&rsquo;s (et al.) <a href="https://cran.r-project.org/web/packages/Matrix/index.html">Matrix package</a></li>
+<li>Charles Determan&rsquo;s <a href="https://github.com/cdeterman/gpuR">gpuR</a> and <a href="https://github.com/gpuRcore">gpuR-related packages</a></li>
+<li>Norm Matloff&rsquo;s <a href="https://github.com/Rth-org/Rth">Rth</a></li>
+</ul>
+<p>Some related R packages I have worked on:</p>
+<ul>
+<li><a href="https://github.com/wrathematics/float">float</a></li>
+<li><a href="https://github.com/RBigData/kazaam">kazaam</a></li>
+<li><a href="https://github.com/RBigData/pbdDMAT">pbdDMAT</a></li>
+</ul>
+
+</div>
+
+<br>
+<p>
+<a href="/2020/06/02/orthogonal-factorizations/">← Orthogonal Factorizations</a>&nbsp;
+<a href="/2020/06/08/calculating-matrix-condition-numbers/" style="float:right;">Calculating Matrix Condition Numbers →</a>
+</p>
+<br>
+
+
+<p style="color:grey;font-size:12px"><small>
+© 2020.
+Post content is <a href="http://creativecommons.org/licenses/by-sa/4.0/">CC-BY-SA</a>.
+Source code listings are <a href="http://creativecommons.org/publicdomain/zero/1.0/">CC0</a>.
+</small></p>
+
+<footer>
+  <script type="text/x-mathjax-config">
+    MathJax.Hub.Config({
+      tex2jax: {
+        inlineMath: [ ['$','$'], ["\\(","\\)"] ],
+        processEscapes: true
+      }
+    });
+  </script>
+  <script type="text/javascript" src="https://cdn.mathjax.org/mathjax/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML"></script>
+</footer>
+</body>
+</html>
+

@@ -1,0 +1,94 @@
+<?xml version="1.0" encoding="utf-8" standalone="yes"?>
+<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom">
+  <channel>
+    <title>fml blog</title>
+    <link>/</link>
+    <description>Recent content on fml blog</description>
+    <generator>Hugo -- gohugo.io</generator>
+    <language>en-us</language>
+    <copyright>This work is licensed under a Creative Commons Attribution-ShareAlike 4.0 International License.</copyright>
+    <lastBuildDate>Mon, 15 Jun 2020 00:00:00 +0000</lastBuildDate>
+    
+	<atom:link href="/index.xml" rel="self" type="application/rss+xml" />
+    
+    
+    <item>
+      <title>SVD via Lanczos Iteration</title>
+      <link>/2020/06/15/svd-via-lanczos-iteration/</link>
+      <pubDate>Mon, 15 Jun 2020 00:00:00 +0000</pubDate>
+      
+      <guid>/2020/06/15/svd-via-lanczos-iteration/</guid>
+      <description>Background Every few years, I try to figure out the Lanczos method to approximate SVD of a rectangular matrix. Unfortunately, every resource I find always leaves out enough details to confuse me. All of the information I want is available across multiple writeups, but everyone uses different notation, making things even more confusing.
+This time I finally sat down and got to a point where I finally felt like I understood it.</description>
+    </item>
+    
+    <item>
+      <title>Introducing fml - the Fused Matrix Library</title>
+      <link>/2020/06/09/introducing-fml-the-fused-matrix-library/</link>
+      <pubDate>Tue, 09 Jun 2020 00:00:00 +0000</pubDate>
+      
+      <guid>/2020/06/09/introducing-fml-the-fused-matrix-library/</guid>
+      <description>What is fml? fml is the Fused Matrix Library, a header-only C++14 library for dense matrix computing. The emphasis is on real-valued matrix types (float, double, and __half) for numerical operations useful for data analysis.
+The library provides 3 main classes: cpumat, gpumat, and mpimat. There is currently an experimental parmat class, but it is at present not well developed. For the main classes:
+ CPU: Single node cpu computing (multi-threaded if using multi-threaded BLAS and linking with OpenMP).</description>
+    </item>
+    
+    <item>
+      <title>Calculating Matrix Condition Numbers</title>
+      <link>/2020/06/08/calculating-matrix-condition-numbers/</link>
+      <pubDate>Mon, 08 Jun 2020 00:00:00 +0000</pubDate>
+      
+      <guid>/2020/06/08/calculating-matrix-condition-numbers/</guid>
+      <description>Throughout, we assume that all matrices are real-valued.
+The condition number of a matrix (relative to a norm) is an important concept in numerical analysis. If $A$ is square, then for any norm you would care about, the condition number $\kappa$ of $A$ is:
+$$\kappa(A) = \lVert A \rVert \cdot \lVert A^{-1} \rVert$$
+But in the much more typical case for data analysis where $A$ is non-square$, then we have:</description>
+    </item>
+    
+    <item>
+      <title>Introducing fmlr</title>
+      <link>/2020/06/05/introducing-fmlr/</link>
+      <pubDate>Fri, 05 Jun 2020 00:00:00 +0000</pubDate>
+      
+      <guid>/2020/06/05/introducing-fmlr/</guid>
+      <description>not compare
+For one, I think this shows that I&amp;rsquo;ve been thinking about this for a long time. And the approach here may seem very strange, but it&amp;rsquo;s for a good reason. And two, this approach isn&amp;rsquo;t really &amp;ldquo;better&amp;rdquo; or &amp;ldquo;worse&amp;rdquo; than another. It comes with advantages and disadvantages.
+Philosophy and Similar Projects Some similar C/C++ projects worth mentioning:
+ Armadillo Eigen Boost PETSc GSL  Some similar R projects worth mentioning:</description>
+    </item>
+    
+    <item>
+      <title>Orthogonal Factorizations</title>
+      <link>/2020/06/02/orthogonal-factorizations/</link>
+      <pubDate>Tue, 02 Jun 2020 00:00:00 +0000</pubDate>
+      
+      <guid>/2020/06/02/orthogonal-factorizations/</guid>
+      <description>Integers can be factored into products of special kinds of integers with useful properties called primes. Similarly, matrices be factored into special kinds of matrices with useful properties.
+Anyone who took a matrix algebra course in university has seen the LU decomposition. This is useful for things like solving square systems of equations and computing matrix inverses. Probably the most important/powerful of the factorizations is the singular value decomposition.
+QR factorization.</description>
+    </item>
+    
+    <item>
+      <title>SVD on a GPU with CUDA</title>
+      <link>/2020/06/01/svd-on-a-gpu-with-cuda/</link>
+      <pubDate>Mon, 01 Jun 2020 00:00:00 +0000</pubDate>
+      
+      <guid>/2020/06/01/svd-on-a-gpu-with-cuda/</guid>
+      <description>TODO singular value decomposition
+$$ A = U \Sigma V^T $$
+cuSOLVER
+jacobi algorithm
+Crossproduct + Eigensolver In the tall/skinny case where $m&amp;gt;n$, this is calculated by taking the eigenvalue decomposition of $A^TA$, or the &amp;ldquo;crossproducts matrix&amp;rdquo;. This matrix will be $n\times n$ (and so if $n$ is small, the matrix is small). The square root of its eigenvalues are the singular values of $A$, and its eigenvectors are the right singular vectors $V$ of $A$.</description>
+    </item>
+    
+    <item>
+      <title>About</title>
+      <link>/page/about/</link>
+      <pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate>
+      
+      <guid>/page/about/</guid>
+      <description>This is a blog dedicated to the fml project, which is at its heart a C++ library for high-performance dense matrix computing. Sometimes I also talk about math related to things I&amp;rsquo;m thinking about in fml.</description>
+    </item>
+    
+  </channel>
+</rss>

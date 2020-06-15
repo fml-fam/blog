@@ -1,0 +1,353 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+	<meta charset="utf-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1">
+	
+	<title>SVD via Lanczos Iteration</title>
+	
+	<meta name="description" content="">
+	<meta name="image" content="">
+	
+	<meta itemprop="name" content="SVD via Lanczos Iteration">
+	<meta itemprop="description" content="">
+	<meta itemprop="image" content="">
+	
+	<meta name="og:title" content="SVD via Lanczos Iteration">
+	<meta name="og:description" content="">
+	
+	<meta name="og:url" content="/2020/06/15/svd-via-lanczos-iteration/">
+	<meta name="og:site_name" content="SVD via Lanczos Iteration">
+	<meta name="og:type" content="article">
+	
+	<meta name="article:author" content="wrathematics">
+	<meta name="article:tag" content="math ">
+	<link rel="stylesheet" type="text/css" href="/css/style3.css">
+	<script src="/js/caption.js"></script>
+</head>
+<body>
+
+<header >
+	<a href="/" style="float: left;color:#777;"><strong>fml blog</strong>
+	</a>
+	<a href="/index.xml" style="color:#777;float: left;"><strong>
+		&nbsp;
+	<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather feather-rss"><path d="M4 11a9 9 0 0 1 9 9"></path><path d="M4 4a16 16 0 0 1 16 16"></path><circle cx="5" cy="19" r="1"></circle></svg>
+</strong></a>
+<a href="/page/about/" style="color:#777;"><strong>About</strong></a>
+
+</header>
+
+
+<div id="loadingMask" style="width: 100%; height: 100%; position: fixed; background: #fff;"></div>
+<script>
+function fadeOut(el) {
+  el.style.opacity = 1;
+
+  var last = +new Date();
+  var tick = function() {
+    el.style.opacity = +el.style.opacity - (new Date() - last) / 80;
+    last = +new Date();
+    
+
+    if (el.style.opacity > 0) {
+      (window.requestAnimationFrame && requestAnimationFrame(tick)) || setTimeout(tick, 16);
+    } else {
+    	el.style.display='none';
+    }
+  };
+
+  tick();
+}
+
+function ready(fn) {
+    if (document.attachEvent ? document.readyState === "complete" : document.readyState !== "loading") {
+         el = document.getElementById('loadingMask');
+         fadeOut(el);
+        var elements = document.querySelectorAll("img");
+        Array.prototype.forEach.call(elements, function(el, i) {
+            if (el.getAttribute("alt")) {
+                const caption = document.createElement('figcaption');
+                var node = document.createTextNode(el.getAttribute("alt"));
+                caption.appendChild(node);
+                const wrapper = document.createElement('figure');
+                wrapper.className = 'image';
+                el.parentNode.insertBefore(wrapper, el);
+                el.parentNode.removeChild(el);
+                wrapper.appendChild(el);
+                wrapper.appendChild(caption);
+            }
+        });
+
+    } else {
+        document.addEventListener('DOMContentLoaded', fn);
+    }
+}
+window.onload = ready;
+</script>
+
+<div class="content">
+	<h1>SVD via Lanczos Iteration <aside><a href="/tags/math/" class="w3-tag">/math</a>&nbsp;&nbsp;&nbsp;</aside></h1>
+  
+  	<p><small><em>Written Mon, June 15, 2020. </em>
+  	</small></p>
+  
+  
+  <h2 id="background">Background</h2>
+<p>Every few years, I try to figure out the Lanczos method to approximate SVD of a rectangular matrix. Unfortunately, every resource I find always leaves out enough details to confuse me. All of the information I want is available across multiple writeups, but everyone uses different notation, making things even more confusing.</p>
+<p>This time I finally sat down and got to a point where I finally felt like I understood it. This writeup will hopefully clarify how you can use the Lanczos iteration to estimate singular values/vectors of a rectangular matrix. It&rsquo;s written for the kind of person who is interested in implementing it in software. If you want more information or mathematical proofs, I cite the important bits in the footnotes. Anything uncited is probably answered in <sup id="fnref:1"><a href="#fn:1" class="footnote-ref" role="doc-noteref">1</a></sup>.</p>
+<p>I assume you know what singular/eigen-values/vectors are. If you don&rsquo;t know why someone would care about computing approximations of them cheaply, a good applications is truncated PCA. If you just take (approximations of) the first few rotations, then you can visualize your data in 2 or 3 dimensions. And if your dataset is big, that can be a valuable time saver.</p>
+<p>Throughout, we will use the following notation. For a vector $v$, let $\lVert v \rVert_2$ denote the Euclidean norm $\sqrt{\sum v_i^2}$. Whenever we refer to the norm of a vector, we will take that to be the Euclidean norm.</p>
+<p>We can &ldquo;square up&rdquo; any rectangular matrix $A$ with dimension $m\times n$ by padding with zeros to create the square, symmetric matrix $H$ with dimension $(m+n)\times (m+n)$:</p>
+<p>$$
+\begin{align*}
+H =
+\begin{bmatrix}
+0 &amp; A \\<br>
+A^T &amp; 0
+\end{bmatrix}
+\end{align*}
+$$</p>
+<p>Finally, given scalars $\alpha_1, \dots, \alpha_k$ and $\beta_1, \dots, \beta_{k-1}$, we can form the tri-diagonal matrix $T_k$:</p>
+<p>$$
+\begin{align*}
+T_k =
+\begin{bmatrix}
+\alpha_1 &amp; \beta_1 &amp; 0 &amp; \dots &amp; 0 &amp; 0 \\<br>
+\beta_1 &amp; \alpha_2 &amp; \beta_2 &amp; \dots &amp; 0 &amp; 0 \\<br>
+0 &amp; \beta_2 &amp; \alpha_3 &amp; \dots &amp; 0 &amp; 0 \\<br>
+\vdots &amp; \vdots &amp; \vdots &amp; \ddots &amp; \vdots &amp; \vdots \\<br>
+0 &amp; 0 &amp; 0 &amp; \dots &amp; \alpha_{k-1} &amp; \beta_{k-1} \\<br>
+0 &amp; 0 &amp; 0 &amp; \dots &amp; \beta_{k-1} &amp; \alpha_k
+\end{bmatrix}
+\end{align*}
+$$</p>
+<h2 id="lanczos-iteration">Lanczos Iteration</h2>
+<p>We&rsquo;re going to define the Lanczos iteration (Algorithm 36.1 of <sup id="fnref:2"><a href="#fn:2" class="footnote-ref" role="doc-noteref">2</a></sup>) in the abstract. Its mathematical motivation is probably too complicated for anyone who would find this writeup helpful. For now, we will just think of it as a process that may have some application in the future.</p>
+<ul>
+<li>Inputs:
+<ul>
+<li>Square, real, symmetric matrix $A$ of dimension $n\times n$</li>
+<li>Integer $1\leq k \leq n$.</li>
+</ul>
+</li>
+<li>Outputs:
+<ul>
+<li>$k$-length vector $\alpha = \left[ \alpha_1, \alpha_2, \dots, \alpha_k \right]^T$</li>
+<li>$k$-length vector $\beta = \left[ \beta_1, \beta_2, \dots, \beta_k \right]^T$</li>
+<li>$n\times k$-dimensional matrix $Q_k = \left[ q_1, q_2, \dots, q_k \right]$ (the $q_i$ are column vectors).</li>
+</ul>
+</li>
+<li>Initialize $q_1$ to a random vector with norm 1. For the sake of notational convenience, treat $\beta_0=0$ and $q_0$ to be an $n$-length vector of zeros.</li>
+<li>For $i = 1, 2, \dots, k$:
+<ul>
+<li>$v = Aq_i$</li>
+<li>$\alpha_i = q^T_i v$</li>
+<li>$v = v - \beta_{i-1}q_{i-1} - \alpha_i q_i$</li>
+<li>$\beta_i = \lVert v \rVert_2$</li>
+<li>$q_{i+1} = \frac{1}{\beta_i}v$</li>
+</ul>
+</li>
+</ul>
+<p>In R, this might look like:</p>
+<div class="highlight"><pre style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-r" data-lang="r">l2norm <span style="color:#f92672">=</span> <span style="color:#a6e22e">function</span>(x) <span style="color:#a6e22e">sqrt</span>(<span style="color:#a6e22e">sum</span>(x<span style="color:#f92672">*</span>x))
+
+lanczos <span style="color:#f92672">=</span> <span style="color:#a6e22e">function</span>(A, k<span style="color:#f92672">=</span><span style="color:#ae81ff">1</span>)
+{
+  n <span style="color:#f92672">=</span> <span style="color:#a6e22e">nrow</span>(A)
+  
+  alpha <span style="color:#f92672">=</span> <span style="color:#a6e22e">numeric</span>(k)
+  beta <span style="color:#f92672">=</span> <span style="color:#a6e22e">numeric</span>(k)
+  
+  q <span style="color:#f92672">=</span> <span style="color:#a6e22e">matrix</span>(<span style="color:#ae81ff">0</span>, n, k)
+  q[, <span style="color:#ae81ff">1</span>] <span style="color:#f92672">=</span> <span style="color:#a6e22e">runif</span>(n)
+  q[, <span style="color:#ae81ff">1</span>] <span style="color:#f92672">=</span> q[, <span style="color:#ae81ff">1</span>]<span style="color:#f92672">/</span><span style="color:#a6e22e">l2norm</span>(q[, <span style="color:#ae81ff">1</span>])
+  
+  <span style="color:#a6e22e">for </span>(i in <span style="color:#ae81ff">1</span><span style="color:#f92672">:</span>k)
+  {
+    v <span style="color:#f92672">=</span> A <span style="color:#f92672">%*%</span> q[, i]
+    alpha[i] <span style="color:#f92672">=</span> <span style="color:#a6e22e">crossprod</span>(q[, i], v)
+    
+    <span style="color:#a6e22e">if </span>(i <span style="color:#f92672">==</span> <span style="color:#ae81ff">1</span>)
+      v <span style="color:#f92672">=</span> v <span style="color:#f92672">-</span> alpha[i]<span style="color:#f92672">*</span>q[, i]
+    else
+      v <span style="color:#f92672">=</span> v <span style="color:#f92672">-</span> beta[i<span style="color:#ae81ff">-1</span>]<span style="color:#f92672">*</span>q[, i<span style="color:#ae81ff">-1</span>] <span style="color:#f92672">-</span> alpha[i]<span style="color:#f92672">*</span>q[, i]
+    
+    beta[i] <span style="color:#f92672">=</span> <span style="color:#a6e22e">l2norm</span>(v)
+    
+    <span style="color:#a6e22e">if </span>(i<span style="color:#f92672">&lt;</span>k)
+      q[, i<span style="color:#ae81ff">+1</span>] <span style="color:#f92672">=</span> v<span style="color:#f92672">/</span>beta[i]
+  }
+  
+  <span style="color:#a6e22e">list</span>(alpha<span style="color:#f92672">=</span>alpha, beta<span style="color:#f92672">=</span>beta, q<span style="color:#f92672">=</span>q)
+}
+</code></pre></div><p>As presented, this has nothing to do with calculating eigen-and/or-singular values/vectors. That is the subject of the next section.</p>
+<h2 id="application-to-spectral-decomposition-and-svd">Application to Spectral Decomposition and SVD</h2>
+<p>If $A$ is a square, symmetric matrix of order $n$, then you can estimate its <strong>eigenvalues</strong> by applying the lanczos method. The $\alpha$ and $\beta$ values can be used to form the tridiagonal matrix $T_k$, and the eigenvalues of $T_k$ approximate the eigenvalues of $A$ (Theorem 12.5 of <sup id="fnref:3"><a href="#fn:3" class="footnote-ref" role="doc-noteref">3</a></sup>). For the <strong>eigenvectors</strong>, let $S_k$ be the eigenvectors of $T_k$. Then approximations to the eigenvectors are given by $Q_k S_k$ (Theorem 12.6 of <sup id="fnref:3"><a href="#fn:3" class="footnote-ref" role="doc-noteref">3</a></sup>). In practice with $k\ll n$ the $T_k$ will be small enough that explicitly forming it and using a symmetric eigensolver like LAPACK&rsquo;s <code>Xsyevr()</code> or <code>Xsyevd()</code> will suffice. You could also use <code>Xsteqr()</code> instead.</p>
+<p>To calculate the <strong>SVD</strong> of a rectangular matrix $A$ of dimension $m\times n$ and $m&gt;n$, you square it up to the matrix $H$. With $H$, you now have a square, symmetric matrix of order $m+n$, so you can perform the Lanczos iteration $k$ times to approximate the eivenvalues of $H$ by the above. Note that for full convergence, we need to run the iteration $m+n$ times, not $n$ (which would be a very expensive way of computing them). The approximations to the <strong>singular values</strong> of $A$ are given by the non-zero eigenvalues of $H$. On the other hand, the <strong>singular vectors</strong> (left and right) are found in $Y_k := \sqrt{2}\thinspace Q_k S_k$ (Theorem 3.3.4 of <sup id="fnref:4"><a href="#fn:4" class="footnote-ref" role="doc-noteref">4</a></sup>). Specifically, the first $m$ rows of $Y_k$ are the left singular vectors, and the remaining $n$ rows are the right singular vectors (note: not their transpose).</p>
+<p>Since the involvement of the input matrix $A$ in computing the Lanczos iteration is in the matrix-vector product $Hq_i$, it&rsquo;s possible to avoid explicitly forming the squard up matrix $H$, or even to apply this to sparse problems, a common application of the algorithm. For similar reasons, this makes it very simple (or as simple as these things can be) to use it in <a href="https://en.wikipedia.org/wiki/External_memory_algorithm">out-of-core algorithms</a> (although not <a href="https://en.wikipedia.org/wiki/Online_algorithm">online</a> variants, given the iterative nature). Finally, note that if you do not need the eigen/singular vectors, then you do not need to store all column vectors $q_i$ of $Q_k$.</p>
+<p>If you have $m&lt;n$ then I think you would just use the usual &ldquo;transpose arithmetic&rdquo;, although maybe even the above is fine. I haven&rsquo;t thought about it and at this point I don&rsquo;t care.</p>
+<h2 id="key-takeaways-and-example-code">Key Takeaways and Example Code</h2>
+<p>tldr</p>
+<ul>
+<li>Spectral Decomposition
+<ul>
+<li>Let $A$ be a real-valued, square, symmetric matrix of order $n$.</li>
+<li><strong>Eigenvalues</strong>: The non-zero eigenvalues of $T_k$ (formed by Lanczos iteration on the matrix $A$) for $k\leq n$ are approximations of the corresponding (ordered greatest to least) eigenvalues values of $A$.</li>
+<li><strong>Eigenvectors</strong>: If $S_k$ are the eigenvectors of $T_k$, then the eigenvectors of $A$ are approximated by $Q_k S_k$.</li>
+</ul>
+</li>
+<li>SVD
+<ul>
+<li>Let $A$ be a real-valued matrix with dimension $m\times n$ and $m&lt;n$. Let $H$ be the matrix formed by &ldquo;squaring up&rdquo; $A$.</li>
+<li><strong>Singular values</strong>: The non-zero eigenvalues of $T_k$ (formed by Lanczos iteration on the matrix $H$) for $k\leq m+n$ are approximations of the corresponding (ordered greatest to least) singular values values of $A$.</li>
+<li><strong>Singular vectors</strong>: If $S_k$ are the eigenvectors of $T_k$, then $\sqrt{2}\thinspace Q_k S_k$ contain approximations to the left (first $m$ rows) and right (last $n$ rows) singular vectors.</li>
+<li>If $H$ is full rank, as $k\rightarrow m+n$ (not $n$), then the approximation becomes more accurate (if calculated in exact arithmetic).</li>
+<li>Experimentally I find that using twice the number of Lanczos iterations as desired singular values seems to work well. Examination of the error analysis (Theorem 12.7 of <sup id="fnref:3"><a href="#fn:3" class="footnote-ref" role="doc-noteref">3</a></sup>) may reveal why, but I haven&rsquo;t thought about it.</li>
+</ul>
+</li>
+</ul>
+<p>Ignoring some of the performance/memory concerns addressed above, we might implement this in R like so:</p>
+<div class="highlight"><pre style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-r" data-lang="r">square_up <span style="color:#f92672">=</span> <span style="color:#a6e22e">function</span>(x)
+{
+  m <span style="color:#f92672">=</span> <span style="color:#a6e22e">nrow</span>(x)
+  n <span style="color:#f92672">=</span> <span style="color:#a6e22e">ncol</span>(x)
+  
+  <span style="color:#a6e22e">rbind</span>(
+    <span style="color:#a6e22e">cbind</span>(<span style="color:#a6e22e">matrix</span>(<span style="color:#ae81ff">0</span>, m, m), x),
+    <span style="color:#a6e22e">cbind</span>(<span style="color:#a6e22e">t</span>(x), <span style="color:#a6e22e">matrix</span>(<span style="color:#ae81ff">0</span>, n, n))
+  )
+}
+
+tridiagonal <span style="color:#f92672">=</span> <span style="color:#a6e22e">function</span>(alpha, beta)
+{
+  n <span style="color:#f92672">=</span> <span style="color:#a6e22e">length</span>(alpha)
+  td <span style="color:#f92672">=</span> <span style="color:#a6e22e">diag</span>(alpha)
+  <span style="color:#a6e22e">for </span>(i in <span style="color:#ae81ff">1</span><span style="color:#f92672">:</span>(n<span style="color:#ae81ff">-1</span>))
+  {
+    td[i, i<span style="color:#ae81ff">+1</span>] <span style="color:#f92672">=</span> beta[i]
+    td[i<span style="color:#ae81ff">+1</span>, i] <span style="color:#f92672">=</span> beta[i]
+  }
+  
+  td
+}
+
+<span style="color:#75715e">#&#39; @param A rectangular, numeric matrix with `nrow(A) &gt; ncol(A)`</span>
+<span style="color:#75715e">#&#39; @param k The number of singular values/vectors to estimate. The number</span>
+<span style="color:#75715e">#&#39; of lanczos iterations is taken to be twice this number. Should be</span>
+<span style="color:#75715e">#&#39; &#34;small&#34;.</span>
+<span style="color:#75715e">#&#39; @param only.values Should only values be returned, or also vectors?</span>
+<span style="color:#75715e">#&#39; @return Estimates of the first `k` singular values/vectors. Returns</span>
+<span style="color:#75715e">#&#39; the usual (for R) list of elements `d`, `u`, `v`.</span>
+lanczos_svd <span style="color:#f92672">=</span> <span style="color:#a6e22e">function</span>(A, k, only.values<span style="color:#f92672">=</span><span style="color:#66d9ef">TRUE</span>)
+{
+  m <span style="color:#f92672">=</span> <span style="color:#a6e22e">nrow</span>(A)
+  n <span style="color:#f92672">=</span> <span style="color:#a6e22e">ncol</span>(A)
+  <span style="color:#a6e22e">if </span>(m <span style="color:#f92672">&lt;</span> n)
+    <span style="color:#a6e22e">stop</span>(<span style="color:#e6db74">&#34;only implemented for m&gt;n&#34;</span>)
+  
+  nc <span style="color:#f92672">=</span> <span style="color:#a6e22e">min</span>(n, k)
+  
+  kl <span style="color:#f92672">=</span> <span style="color:#ae81ff">2</span><span style="color:#f92672">*</span>k <span style="color:#75715e"># double the lanczos iterations</span>
+  
+  H <span style="color:#f92672">=</span> <span style="color:#a6e22e">square_up</span>(A)
+  lz <span style="color:#f92672">=</span> <span style="color:#a6e22e">lanczos</span>(H, k<span style="color:#f92672">=</span>kl)
+  T_kl <span style="color:#f92672">=</span> <span style="color:#a6e22e">tridiagonal</span>(lz<span style="color:#f92672">$</span>alpha, lz<span style="color:#f92672">$</span>beta)
+  
+  ev <span style="color:#f92672">=</span> <span style="color:#a6e22e">eigen</span>(T_kl, symmetric<span style="color:#f92672">=</span><span style="color:#66d9ef">TRUE</span>, only.values<span style="color:#f92672">=</span>only.values)
+  d <span style="color:#f92672">=</span> ev<span style="color:#f92672">$</span>values[1<span style="color:#f92672">:</span>nc]
+  
+  <span style="color:#a6e22e">if </span>(<span style="color:#f92672">!</span>only.values)
+  {
+    UV <span style="color:#f92672">=</span> <span style="color:#a6e22e">sqrt</span>(<span style="color:#ae81ff">2</span>) <span style="color:#f92672">*</span> (lz<span style="color:#f92672">$</span>q <span style="color:#f92672">%*%</span> ev<span style="color:#f92672">$</span>vectors)
+    u <span style="color:#f92672">=</span> UV[1<span style="color:#f92672">:</span>m, <span style="color:#ae81ff">1</span><span style="color:#f92672">:</span>nc]
+    v <span style="color:#f92672">=</span> UV<span style="color:#a6e22e">[</span>(m<span style="color:#ae81ff">+1</span>)<span style="color:#f92672">:</span>(m<span style="color:#f92672">+</span>n), <span style="color:#ae81ff">1</span><span style="color:#f92672">:</span>nc]
+  }
+  else
+  {
+    u <span style="color:#f92672">=</span> <span style="color:#66d9ef">NULL</span>
+    v <span style="color:#f92672">=</span> <span style="color:#66d9ef">NULL</span>
+  }
+  
+  <span style="color:#a6e22e">list</span>(d<span style="color:#f92672">=</span>d, u<span style="color:#f92672">=</span>u, v<span style="color:#f92672">=</span>v)
+}
+</code></pre></div><p>And here&rsquo;s a simple demonstration</p>
+<div class="highlight"><pre style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-r" data-lang="r">
+<span style="color:#a6e22e">set.seed</span>(<span style="color:#ae81ff">1234</span>)
+m <span style="color:#f92672">=</span> <span style="color:#ae81ff">300</span>
+n <span style="color:#f92672">=</span> <span style="color:#ae81ff">10</span>
+x <span style="color:#f92672">=</span> <span style="color:#a6e22e">matrix</span>(<span style="color:#a6e22e">rnorm</span>(m<span style="color:#f92672">*</span>n), m, n)
+
+k <span style="color:#f92672">=</span> <span style="color:#ae81ff">3</span>
+lz <span style="color:#f92672">=</span> <span style="color:#a6e22e">lanczos_svd</span>(x, k<span style="color:#f92672">=</span>k, <span style="color:#66d9ef">FALSE</span>)
+sv <span style="color:#f92672">=</span> <span style="color:#a6e22e">svd</span>(x)
+
+<span style="color:#a6e22e">round</span>(lz<span style="color:#f92672">$</span>d, <span style="color:#ae81ff">5</span>)
+</code></pre></div><pre><code>[1] 18.43443 15.83699  0.00160
+</code></pre>
+<div class="highlight"><pre style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-r" data-lang="r"><span style="color:#a6e22e">round</span>(sv<span style="color:#f92672">$</span>d[1<span style="color:#f92672">:</span>k], <span style="color:#ae81ff">5</span>)
+</code></pre></div><pre><code>[1] 19.69018 18.65107 18.41093
+</code></pre>
+<div class="highlight"><pre style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-r" data-lang="r">firstfew <span style="color:#f92672">=</span> <span style="color:#ae81ff">1</span><span style="color:#f92672">:</span><span style="color:#ae81ff">4</span>
+<span style="color:#a6e22e">round</span>(lz<span style="color:#f92672">$</span>v[firstfew, ], <span style="color:#ae81ff">5</span>)
+</code></pre></div><pre><code>        [,1]    [,2]     [,3]
+[1,] 0.40748 0.02210 -0.00228
+[2,] 0.21097 0.18573 -0.00051
+[3,] 0.13179 0.01563 -0.00411
+[4,] 0.39096 0.27893 -0.00117
+</code></pre>
+<div class="highlight"><pre style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-r" data-lang="r"><span style="color:#a6e22e">round</span>(sv<span style="color:#f92672">$</span>v[firstfew, <span style="color:#ae81ff">1</span><span style="color:#f92672">:</span>k], <span style="color:#ae81ff">5</span>)
+</code></pre></div><pre><code>        [,1]     [,2]     [,3]
+[1,] 0.44829 -0.28028 -0.06481
+[2,] 0.18420  0.00095  0.67200
+[3,] 0.07991  0.01054 -0.14656
+[4,] 0.16961 -0.27779 -0.37683
+</code></pre>
+<section class="footnotes" role="doc-endnotes">
+<hr>
+<ol>
+<li id="fn:1" role="doc-endnote">
+<p>Golub, Gene H., and Charles F. Van Loan. <em>Matrix computations</em>. Vol. 3. JHU press, 2012. <a href="#fnref:1" class="footnote-backref" role="doc-backlink">&#x21a9;&#xfe0e;</a></p>
+</li>
+<li id="fn:2" role="doc-endnote">
+<p>Trefethen, Lloyd N., and David Bau III. <em><a href="https://www.cs.cmu.edu/afs/cs/academic/class/15859n-f16/Handouts/TrefethenBau/LanczosIteration-36.pdf">Numerical linear algebra</a></em>. Vol. 50. Siam, 1997. <a href="#fnref:2" class="footnote-backref" role="doc-backlink">&#x21a9;&#xfe0e;</a></p>
+</li>
+<li id="fn:3" role="doc-endnote">
+<p>Caramanis and Sanghavi, <em><a href="http://users.ece.utexas.edu/~sanghavi/courses/scribed_notes/Lecture_13_and_14_Scribe_Notes.pdf">Large scale learning: lecture 12</a></em>. (<a href="https://web.archive.org/web/20171215080524/http://users.ece.utexas.edu/~sanghavi/courses/scribed_notes/Lecture_13_and_14_Scribe_Notes.pdf">archive.org link</a>) <a href="#fnref:3" class="footnote-backref" role="doc-backlink">&#x21a9;&#xfe0e;</a></p>
+</li>
+<li id="fn:4" role="doc-endnote">
+<p>Demmel, James W. <em><a href="https://books.google.com/books?hl=en&amp;lr=&amp;id=P3bPAgAAQBAJ&amp;oi=fnd&amp;pg=PR9&amp;dq=applied+numerical+linear+algebra+demmel&amp;ots=I7OxKaWh-y&amp;sig=QKRZPGe0SiuBstzxYCg4j35gctE#v=onepage&amp;q=applied%20numerical%20linear%20algebra%20demmel&amp;f=false">Applied numerical linear algebra</a></em>. Vol. 56. Siam, 1997. <a href="#fnref:4" class="footnote-backref" role="doc-backlink">&#x21a9;&#xfe0e;</a></p>
+</li>
+</ol>
+</section>
+
+</div>
+
+<br>
+<p>
+<a href="/2020/06/09/introducing-fml-the-fused-matrix-library/">← Introducing fml - the Fused Matrix Library</a>&nbsp;
+
+</p>
+<br>
+
+
+<p style="color:grey;font-size:12px"><small>
+© 2020.
+Post content is <a href="http://creativecommons.org/licenses/by-sa/4.0/">CC-BY-SA</a>.
+Source code listings are <a href="http://creativecommons.org/publicdomain/zero/1.0/">CC0</a>.
+</small></p>
+
+<footer>
+  <script type="text/x-mathjax-config">
+    MathJax.Hub.Config({
+      tex2jax: {
+        inlineMath: [ ['$','$'], ["\\(","\\)"] ],
+        processEscapes: true
+      }
+    });
+  </script>
+  <script type="text/javascript" src="https://cdn.mathjax.org/mathjax/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML"></script>
+</footer>
+</body>
+</html>
+

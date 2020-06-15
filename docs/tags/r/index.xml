@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="utf-8" standalone="yes"?>
+<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom">
+  <channel>
+    <title>r on fml blog</title>
+    <link>/tags/r/</link>
+    <description>Recent content in r on fml blog</description>
+    <generator>Hugo -- gohugo.io</generator>
+    <language>en-us</language>
+    <copyright>This work is licensed under a Creative Commons Attribution-ShareAlike 4.0 International License.</copyright>
+    <lastBuildDate>Fri, 05 Jun 2020 00:00:00 +0000</lastBuildDate>
+    
+	<atom:link href="/tags/r/index.xml" rel="self" type="application/rss+xml" />
+    
+    
+    <item>
+      <title>Introducing fmlr</title>
+      <link>/2020/06/05/introducing-fmlr/</link>
+      <pubDate>Fri, 05 Jun 2020 00:00:00 +0000</pubDate>
+      
+      <guid>/2020/06/05/introducing-fmlr/</guid>
+      <description>not compare
+For one, I think this shows that I&amp;rsquo;ve been thinking about this for a long time. And the approach here may seem very strange, but it&amp;rsquo;s for a good reason. And two, this approach isn&amp;rsquo;t really &amp;ldquo;better&amp;rdquo; or &amp;ldquo;worse&amp;rdquo; than another. It comes with advantages and disadvantages.
+Philosophy and Similar Projects Some similar C/C++ projects worth mentioning:
+ Armadillo Eigen Boost PETSc GSL  Some similar R projects worth mentioning:</description>
+    </item>
+    
+  </channel>
+</rss>

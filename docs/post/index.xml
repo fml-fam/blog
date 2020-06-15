@@ -1,0 +1,487 @@
+<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom">
+  <channel>
+    <title>Posts on fml blog</title>
+    <link>/post/</link>
+    <description>Recent content in Posts on fml blog</description>
+    <generator>Hugo -- gohugo.io</generator>
+    <language>en-us</language>
+    <copyright>This work is licensed under a Creative Commons Attribution-ShareAlike 4.0 International License.</copyright>
+    <lastBuildDate>Mon, 15 Jun 2020 00:00:00 +0000</lastBuildDate>
+    
+        <atom:link href="/post/index.xml" rel="self" type="application/rss+xml" />
+    
+    
+    <item>
+      <title>SVD via Lanczos Iteration</title>
+      <link>/2020/06/15/svd-via-lanczos-iteration/</link>
+      <pubDate>Mon, 15 Jun 2020 00:00:00 +0000</pubDate>
+      
+      <guid>/2020/06/15/svd-via-lanczos-iteration/</guid>
+      <description>&lt;h2 id=&#34;background&#34;&gt;Background&lt;/h2&gt;
+&lt;p&gt;Every few years, I try to figure out the Lanczos method to approximate SVD of a rectangular matrix. Unfortunately, every resource I find always leaves out enough details to confuse me. All of the information I want is available across multiple writeups, but everyone uses different notation, making things even more confusing.&lt;/p&gt;
+&lt;p&gt;This time I finally sat down and got to a point where I finally felt like I understood it. This writeup will hopefully clarify how you can use the Lanczos iteration to estimate singular values/vectors of a rectangular matrix. It&amp;rsquo;s written for the kind of person who is interested in implementing it in software. If you want more information or mathematical proofs, I cite the important bits in the footnotes. Anything uncited is probably answered in &lt;sup id=&#34;fnref:1&#34;&gt;&lt;a href=&#34;#fn:1&#34; class=&#34;footnote-ref&#34; role=&#34;doc-noteref&#34;&gt;1&lt;/a&gt;&lt;/sup&gt;.&lt;/p&gt;
+&lt;p&gt;I assume you know what singular/eigen-values/vectors are. If you don&amp;rsquo;t know why someone would care about computing approximations of them cheaply, a good applications is truncated PCA. If you just take (approximations of) the first few rotations, then you can visualize your data in 2 or 3 dimensions. And if your dataset is big, that can be a valuable time saver.&lt;/p&gt;
+&lt;p&gt;Throughout, we will use the following notation. For a vector $v$, let $\lVert v \rVert_2$ denote the Euclidean norm $\sqrt{\sum v_i^2}$. Whenever we refer to the norm of a vector, we will take that to be the Euclidean norm.&lt;/p&gt;
+&lt;p&gt;We can &amp;ldquo;square up&amp;rdquo; any rectangular matrix $A$ with dimension $m\times n$ by padding with zeros to create the square, symmetric matrix $H$ with dimension $(m+n)\times (m+n)$:&lt;/p&gt;
+&lt;p&gt;$$
+\begin{align*}
+H =
+\begin{bmatrix}
+0 &amp;amp; A \\&lt;br&gt;
+A^T &amp;amp; 0
+\end{bmatrix}
+\end{align*}
+$$&lt;/p&gt;
+&lt;p&gt;Finally, given scalars $\alpha_1, \dots, \alpha_k$ and $\beta_1, \dots, \beta_{k-1}$, we can form the tri-diagonal matrix $T_k$:&lt;/p&gt;
+&lt;p&gt;$$
+\begin{align*}
+T_k =
+\begin{bmatrix}
+\alpha_1 &amp;amp; \beta_1 &amp;amp; 0 &amp;amp; \dots &amp;amp; 0 &amp;amp; 0 \\&lt;br&gt;
+\beta_1 &amp;amp; \alpha_2 &amp;amp; \beta_2 &amp;amp; \dots &amp;amp; 0 &amp;amp; 0 \\&lt;br&gt;
+0 &amp;amp; \beta_2 &amp;amp; \alpha_3 &amp;amp; \dots &amp;amp; 0 &amp;amp; 0 \\&lt;br&gt;
+\vdots &amp;amp; \vdots &amp;amp; \vdots &amp;amp; \ddots &amp;amp; \vdots &amp;amp; \vdots \\&lt;br&gt;
+0 &amp;amp; 0 &amp;amp; 0 &amp;amp; \dots &amp;amp; \alpha_{k-1} &amp;amp; \beta_{k-1} \\&lt;br&gt;
+0 &amp;amp; 0 &amp;amp; 0 &amp;amp; \dots &amp;amp; \beta_{k-1} &amp;amp; \alpha_k
+\end{bmatrix}
+\end{align*}
+$$&lt;/p&gt;
+&lt;h2 id=&#34;lanczos-iteration&#34;&gt;Lanczos Iteration&lt;/h2&gt;
+&lt;p&gt;We&amp;rsquo;re going to define the Lanczos iteration (Algorithm 36.1 of &lt;sup id=&#34;fnref:2&#34;&gt;&lt;a href=&#34;#fn:2&#34; class=&#34;footnote-ref&#34; role=&#34;doc-noteref&#34;&gt;2&lt;/a&gt;&lt;/sup&gt;) in the abstract. Its mathematical motivation is probably too complicated for anyone who would find this writeup helpful. For now, we will just think of it as a process that may have some application in the future.&lt;/p&gt;
+&lt;ul&gt;
+&lt;li&gt;Inputs:
+&lt;ul&gt;
+&lt;li&gt;Square, real, symmetric matrix $A$ of dimension $n\times n$&lt;/li&gt;
+&lt;li&gt;Integer $1\leq k \leq n$.&lt;/li&gt;
+&lt;/ul&gt;
+&lt;/li&gt;
+&lt;li&gt;Outputs:
+&lt;ul&gt;
+&lt;li&gt;$k$-length vector $\alpha = \left[ \alpha_1, \alpha_2, \dots, \alpha_k \right]^T$&lt;/li&gt;
+&lt;li&gt;$k$-length vector $\beta = \left[ \beta_1, \beta_2, \dots, \beta_k \right]^T$&lt;/li&gt;
+&lt;li&gt;$n\times k$-dimensional matrix $Q_k = \left[ q_1, q_2, \dots, q_k \right]$ (the $q_i$ are column vectors).&lt;/li&gt;
+&lt;/ul&gt;
+&lt;/li&gt;
+&lt;li&gt;Initialize $q_1$ to a random vector with norm 1. For the sake of notational convenience, treat $\beta_0=0$ and $q_0$ to be an $n$-length vector of zeros.&lt;/li&gt;
+&lt;li&gt;For $i = 1, 2, \dots, k$:
+&lt;ul&gt;
+&lt;li&gt;$v = Aq_i$&lt;/li&gt;
+&lt;li&gt;$\alpha_i = q^T_i v$&lt;/li&gt;
+&lt;li&gt;$v = v - \beta_{i-1}q_{i-1} - \alpha_i q_i$&lt;/li&gt;
+&lt;li&gt;$\beta_i = \lVert v \rVert_2$&lt;/li&gt;
+&lt;li&gt;$q_{i+1} = \frac{1}{\beta_i}v$&lt;/li&gt;
+&lt;/ul&gt;
+&lt;/li&gt;
+&lt;/ul&gt;
+&lt;p&gt;In R, this might look like:&lt;/p&gt;
+&lt;div class=&#34;highlight&#34;&gt;&lt;pre style=&#34;color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4&#34;&gt;&lt;code class=&#34;language-r&#34; data-lang=&#34;r&#34;&gt;l2norm &lt;span style=&#34;color:#f92672&#34;&gt;=&lt;/span&gt; &lt;span style=&#34;color:#a6e22e&#34;&gt;function&lt;/span&gt;(x) &lt;span style=&#34;color:#a6e22e&#34;&gt;sqrt&lt;/span&gt;(&lt;span style=&#34;color:#a6e22e&#34;&gt;sum&lt;/span&gt;(x&lt;span style=&#34;color:#f92672&#34;&gt;*&lt;/span&gt;x))
+
+lanczos &lt;span style=&#34;color:#f92672&#34;&gt;=&lt;/span&gt; &lt;span style=&#34;color:#a6e22e&#34;&gt;function&lt;/span&gt;(A, k&lt;span style=&#34;color:#f92672&#34;&gt;=&lt;/span&gt;&lt;span style=&#34;color:#ae81ff&#34;&gt;1&lt;/span&gt;)
+{
+  n &lt;span style=&#34;color:#f92672&#34;&gt;=&lt;/span&gt; &lt;span style=&#34;color:#a6e22e&#34;&gt;nrow&lt;/span&gt;(A)
+  
+  alpha &lt;span style=&#34;color:#f92672&#34;&gt;=&lt;/span&gt; &lt;span style=&#34;color:#a6e22e&#34;&gt;numeric&lt;/span&gt;(k)
+  beta &lt;span style=&#34;color:#f92672&#34;&gt;=&lt;/span&gt; &lt;span style=&#34;color:#a6e22e&#34;&gt;numeric&lt;/span&gt;(k)
+  
+  q &lt;span style=&#34;color:#f92672&#34;&gt;=&lt;/span&gt; &lt;span style=&#34;color:#a6e22e&#34;&gt;matrix&lt;/span&gt;(&lt;span style=&#34;color:#ae81ff&#34;&gt;0&lt;/span&gt;, n, k)
+  q[, &lt;span style=&#34;color:#ae81ff&#34;&gt;1&lt;/span&gt;] &lt;span style=&#34;color:#f92672&#34;&gt;=&lt;/span&gt; &lt;span style=&#34;color:#a6e22e&#34;&gt;runif&lt;/span&gt;(n)
+  q[, &lt;span style=&#34;color:#ae81ff&#34;&gt;1&lt;/span&gt;] &lt;span style=&#34;color:#f92672&#34;&gt;=&lt;/span&gt; q[, &lt;span style=&#34;color:#ae81ff&#34;&gt;1&lt;/span&gt;]&lt;span style=&#34;color:#f92672&#34;&gt;/&lt;/span&gt;&lt;span style=&#34;color:#a6e22e&#34;&gt;l2norm&lt;/span&gt;(q[, &lt;span style=&#34;color:#ae81ff&#34;&gt;1&lt;/span&gt;])
+  
+  &lt;span style=&#34;color:#a6e22e&#34;&gt;for &lt;/span&gt;(i in &lt;span style=&#34;color:#ae81ff&#34;&gt;1&lt;/span&gt;&lt;span style=&#34;color:#f92672&#34;&gt;:&lt;/span&gt;k)
+  {
+    v &lt;span style=&#34;color:#f92672&#34;&gt;=&lt;/span&gt; A &lt;span style=&#34;color:#f92672&#34;&gt;%*%&lt;/span&gt; q[, i]
+    alpha[i] &lt;span style=&#34;color:#f92672&#34;&gt;=&lt;/span&gt; &lt;span style=&#34;color:#a6e22e&#34;&gt;crossprod&lt;/span&gt;(q[, i], v)
+    
+    &lt;span style=&#34;color:#a6e22e&#34;&gt;if &lt;/span&gt;(i &lt;span style=&#34;color:#f92672&#34;&gt;==&lt;/span&gt; &lt;span style=&#34;color:#ae81ff&#34;&gt;1&lt;/span&gt;)
+      v &lt;span style=&#34;color:#f92672&#34;&gt;=&lt;/span&gt; v &lt;span style=&#34;color:#f92672&#34;&gt;-&lt;/span&gt; alpha[i]&lt;span style=&#34;color:#f92672&#34;&gt;*&lt;/span&gt;q[, i]
+    else
+      v &lt;span style=&#34;color:#f92672&#34;&gt;=&lt;/span&gt; v &lt;span style=&#34;color:#f92672&#34;&gt;-&lt;/span&gt; beta[i&lt;span style=&#34;color:#ae81ff&#34;&gt;-1&lt;/span&gt;]&lt;span style=&#34;color:#f92672&#34;&gt;*&lt;/span&gt;q[, i&lt;span style=&#34;color:#ae81ff&#34;&gt;-1&lt;/span&gt;] &lt;span style=&#34;color:#f92672&#34;&gt;-&lt;/span&gt; alpha[i]&lt;span style=&#34;color:#f92672&#34;&gt;*&lt;/span&gt;q[, i]
+    
+    beta[i] &lt;span style=&#34;color:#f92672&#34;&gt;=&lt;/span&gt; &lt;span style=&#34;color:#a6e22e&#34;&gt;l2norm&lt;/span&gt;(v)
+    
+    &lt;span style=&#34;color:#a6e22e&#34;&gt;if &lt;/span&gt;(i&lt;span style=&#34;color:#f92672&#34;&gt;&amp;lt;&lt;/span&gt;k)
+      q[, i&lt;span style=&#34;color:#ae81ff&#34;&gt;+1&lt;/span&gt;] &lt;span style=&#34;color:#f92672&#34;&gt;=&lt;/span&gt; v&lt;span style=&#34;color:#f92672&#34;&gt;/&lt;/span&gt;beta[i]
+  }
+  
+  &lt;span style=&#34;color:#a6e22e&#34;&gt;list&lt;/span&gt;(alpha&lt;span style=&#34;color:#f92672&#34;&gt;=&lt;/span&gt;alpha, beta&lt;span style=&#34;color:#f92672&#34;&gt;=&lt;/span&gt;beta, q&lt;span style=&#34;color:#f92672&#34;&gt;=&lt;/span&gt;q)
+}
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;p&gt;As presented, this has nothing to do with calculating eigen-and/or-singular values/vectors. That is the subject of the next section.&lt;/p&gt;
+&lt;h2 id=&#34;application-to-spectral-decomposition-and-svd&#34;&gt;Application to Spectral Decomposition and SVD&lt;/h2&gt;
+&lt;p&gt;If $A$ is a square, symmetric matrix of order $n$, then you can estimate its &lt;strong&gt;eigenvalues&lt;/strong&gt; by applying the lanczos method. The $\alpha$ and $\beta$ values can be used to form the tridiagonal matrix $T_k$, and the eigenvalues of $T_k$ approximate the eigenvalues of $A$ (Theorem 12.5 of &lt;sup id=&#34;fnref:3&#34;&gt;&lt;a href=&#34;#fn:3&#34; class=&#34;footnote-ref&#34; role=&#34;doc-noteref&#34;&gt;3&lt;/a&gt;&lt;/sup&gt;). For the &lt;strong&gt;eigenvectors&lt;/strong&gt;, let $S_k$ be the eigenvectors of $T_k$. Then approximations to the eigenvectors are given by $Q_k S_k$ (Theorem 12.6 of &lt;sup id=&#34;fnref:3&#34;&gt;&lt;a href=&#34;#fn:3&#34; class=&#34;footnote-ref&#34; role=&#34;doc-noteref&#34;&gt;3&lt;/a&gt;&lt;/sup&gt;). In practice with $k\ll n$ the $T_k$ will be small enough that explicitly forming it and using a symmetric eigensolver like LAPACK&amp;rsquo;s &lt;code&gt;Xsyevr()&lt;/code&gt; or &lt;code&gt;Xsyevd()&lt;/code&gt; will suffice. You could also use &lt;code&gt;Xsteqr()&lt;/code&gt; instead.&lt;/p&gt;
+&lt;p&gt;To calculate the &lt;strong&gt;SVD&lt;/strong&gt; of a rectangular matrix $A$ of dimension $m\times n$ and $m&amp;gt;n$, you square it up to the matrix $H$. With $H$, you now have a square, symmetric matrix of order $m+n$, so you can perform the Lanczos iteration $k$ times to approximate the eivenvalues of $H$ by the above. Note that for full convergence, we need to run the iteration $m+n$ times, not $n$ (which would be a very expensive way of computing them). The approximations to the &lt;strong&gt;singular values&lt;/strong&gt; of $A$ are given by the non-zero eigenvalues of $H$. On the other hand, the &lt;strong&gt;singular vectors&lt;/strong&gt; (left and right) are found in $Y_k := \sqrt{2}\thinspace Q_k S_k$ (Theorem 3.3.4 of &lt;sup id=&#34;fnref:4&#34;&gt;&lt;a href=&#34;#fn:4&#34; class=&#34;footnote-ref&#34; role=&#34;doc-noteref&#34;&gt;4&lt;/a&gt;&lt;/sup&gt;). Specifically, the first $m$ rows of $Y_k$ are the left singular vectors, and the remaining $n$ rows are the right singular vectors (note: not their transpose).&lt;/p&gt;
+&lt;p&gt;Since the involvement of the input matrix $A$ in computing the Lanczos iteration is in the matrix-vector product $Hq_i$, it&amp;rsquo;s possible to avoid explicitly forming the squard up matrix $H$, or even to apply this to sparse problems, a common application of the algorithm. For similar reasons, this makes it very simple (or as simple as these things can be) to use it in &lt;a href=&#34;https://en.wikipedia.org/wiki/External_memory_algorithm&#34;&gt;out-of-core algorithms&lt;/a&gt; (although not &lt;a href=&#34;https://en.wikipedia.org/wiki/Online_algorithm&#34;&gt;online&lt;/a&gt; variants, given the iterative nature). Finally, note that if you do not need the eigen/singular vectors, then you do not need to store all column vectors $q_i$ of $Q_k$.&lt;/p&gt;
+&lt;p&gt;If you have $m&amp;lt;n$ then I think you would just use the usual &amp;ldquo;transpose arithmetic&amp;rdquo;, although maybe even the above is fine. I haven&amp;rsquo;t thought about it and at this point I don&amp;rsquo;t care.&lt;/p&gt;
+&lt;h2 id=&#34;key-takeaways-and-example-code&#34;&gt;Key Takeaways and Example Code&lt;/h2&gt;
+&lt;p&gt;tldr&lt;/p&gt;
+&lt;ul&gt;
+&lt;li&gt;Spectral Decomposition
+&lt;ul&gt;
+&lt;li&gt;Let $A$ be a real-valued, square, symmetric matrix of order $n$.&lt;/li&gt;
+&lt;li&gt;&lt;strong&gt;Eigenvalues&lt;/strong&gt;: The non-zero eigenvalues of $T_k$ (formed by Lanczos iteration on the matrix $A$) for $k\leq n$ are approximations of the corresponding (ordered greatest to least) eigenvalues values of $A$.&lt;/li&gt;
+&lt;li&gt;&lt;strong&gt;Eigenvectors&lt;/strong&gt;: If $S_k$ are the eigenvectors of $T_k$, then the eigenvectors of $A$ are approximated by $Q_k S_k$.&lt;/li&gt;
+&lt;/ul&gt;
+&lt;/li&gt;
+&lt;li&gt;SVD
+&lt;ul&gt;
+&lt;li&gt;Let $A$ be a real-valued matrix with dimension $m\times n$ and $m&amp;lt;n$. Let $H$ be the matrix formed by &amp;ldquo;squaring up&amp;rdquo; $A$.&lt;/li&gt;
+&lt;li&gt;&lt;strong&gt;Singular values&lt;/strong&gt;: The non-zero eigenvalues of $T_k$ (formed by Lanczos iteration on the matrix $H$) for $k\leq m+n$ are approximations of the corresponding (ordered greatest to least) singular values values of $A$.&lt;/li&gt;
+&lt;li&gt;&lt;strong&gt;Singular vectors&lt;/strong&gt;: If $S_k$ are the eigenvectors of $T_k$, then $\sqrt{2}\thinspace Q_k S_k$ contain approximations to the left (first $m$ rows) and right (last $n$ rows) singular vectors.&lt;/li&gt;
+&lt;li&gt;If $H$ is full rank, as $k\rightarrow m+n$ (not $n$), then the approximation becomes more accurate (if calculated in exact arithmetic).&lt;/li&gt;
+&lt;li&gt;Experimentally I find that using twice the number of Lanczos iterations as desired singular values seems to work well. Examination of the error analysis (Theorem 12.7 of &lt;sup id=&#34;fnref:3&#34;&gt;&lt;a href=&#34;#fn:3&#34; class=&#34;footnote-ref&#34; role=&#34;doc-noteref&#34;&gt;3&lt;/a&gt;&lt;/sup&gt;) may reveal why, but I haven&amp;rsquo;t thought about it.&lt;/li&gt;
+&lt;/ul&gt;
+&lt;/li&gt;
+&lt;/ul&gt;
+&lt;p&gt;Ignoring some of the performance/memory concerns addressed above, we might implement this in R like so:&lt;/p&gt;
+&lt;div class=&#34;highlight&#34;&gt;&lt;pre style=&#34;color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4&#34;&gt;&lt;code class=&#34;language-r&#34; data-lang=&#34;r&#34;&gt;square_up &lt;span style=&#34;color:#f92672&#34;&gt;=&lt;/span&gt; &lt;span style=&#34;color:#a6e22e&#34;&gt;function&lt;/span&gt;(x)
+{
+  m &lt;span style=&#34;color:#f92672&#34;&gt;=&lt;/span&gt; &lt;span style=&#34;color:#a6e22e&#34;&gt;nrow&lt;/span&gt;(x)
+  n &lt;span style=&#34;color:#f92672&#34;&gt;=&lt;/span&gt; &lt;span style=&#34;color:#a6e22e&#34;&gt;ncol&lt;/span&gt;(x)
+  
+  &lt;span style=&#34;color:#a6e22e&#34;&gt;rbind&lt;/span&gt;(
+    &lt;span style=&#34;color:#a6e22e&#34;&gt;cbind&lt;/span&gt;(&lt;span style=&#34;color:#a6e22e&#34;&gt;matrix&lt;/span&gt;(&lt;span style=&#34;color:#ae81ff&#34;&gt;0&lt;/span&gt;, m, m), x),
+    &lt;span style=&#34;color:#a6e22e&#34;&gt;cbind&lt;/span&gt;(&lt;span style=&#34;color:#a6e22e&#34;&gt;t&lt;/span&gt;(x), &lt;span style=&#34;color:#a6e22e&#34;&gt;matrix&lt;/span&gt;(&lt;span style=&#34;color:#ae81ff&#34;&gt;0&lt;/span&gt;, n, n))
+  )
+}
+
+tridiagonal &lt;span style=&#34;color:#f92672&#34;&gt;=&lt;/span&gt; &lt;span style=&#34;color:#a6e22e&#34;&gt;function&lt;/span&gt;(alpha, beta)
+{
+  n &lt;span style=&#34;color:#f92672&#34;&gt;=&lt;/span&gt; &lt;span style=&#34;color:#a6e22e&#34;&gt;length&lt;/span&gt;(alpha)
+  td &lt;span style=&#34;color:#f92672&#34;&gt;=&lt;/span&gt; &lt;span style=&#34;color:#a6e22e&#34;&gt;diag&lt;/span&gt;(alpha)
+  &lt;span style=&#34;color:#a6e22e&#34;&gt;for &lt;/span&gt;(i in &lt;span style=&#34;color:#ae81ff&#34;&gt;1&lt;/span&gt;&lt;span style=&#34;color:#f92672&#34;&gt;:&lt;/span&gt;(n&lt;span style=&#34;color:#ae81ff&#34;&gt;-1&lt;/span&gt;))
+  {
+    td[i, i&lt;span style=&#34;color:#ae81ff&#34;&gt;+1&lt;/span&gt;] &lt;span style=&#34;color:#f92672&#34;&gt;=&lt;/span&gt; beta[i]
+    td[i&lt;span style=&#34;color:#ae81ff&#34;&gt;+1&lt;/span&gt;, i] &lt;span style=&#34;color:#f92672&#34;&gt;=&lt;/span&gt; beta[i]
+  }
+  
+  td
+}
+
+&lt;span style=&#34;color:#75715e&#34;&gt;#&amp;#39; @param A rectangular, numeric matrix with `nrow(A) &amp;gt; ncol(A)`&lt;/span&gt;
+&lt;span style=&#34;color:#75715e&#34;&gt;#&amp;#39; @param k The number of singular values/vectors to estimate. The number&lt;/span&gt;
+&lt;span style=&#34;color:#75715e&#34;&gt;#&amp;#39; of lanczos iterations is taken to be twice this number. Should be&lt;/span&gt;
+&lt;span style=&#34;color:#75715e&#34;&gt;#&amp;#39; &amp;#34;small&amp;#34;.&lt;/span&gt;
+&lt;span style=&#34;color:#75715e&#34;&gt;#&amp;#39; @param only.values Should only values be returned, or also vectors?&lt;/span&gt;
+&lt;span style=&#34;color:#75715e&#34;&gt;#&amp;#39; @return Estimates of the first `k` singular values/vectors. Returns&lt;/span&gt;
+&lt;span style=&#34;color:#75715e&#34;&gt;#&amp;#39; the usual (for R) list of elements `d`, `u`, `v`.&lt;/span&gt;
+lanczos_svd &lt;span style=&#34;color:#f92672&#34;&gt;=&lt;/span&gt; &lt;span style=&#34;color:#a6e22e&#34;&gt;function&lt;/span&gt;(A, k, only.values&lt;span style=&#34;color:#f92672&#34;&gt;=&lt;/span&gt;&lt;span style=&#34;color:#66d9ef&#34;&gt;TRUE&lt;/span&gt;)
+{
+  m &lt;span style=&#34;color:#f92672&#34;&gt;=&lt;/span&gt; &lt;span style=&#34;color:#a6e22e&#34;&gt;nrow&lt;/span&gt;(A)
+  n &lt;span style=&#34;color:#f92672&#34;&gt;=&lt;/span&gt; &lt;span style=&#34;color:#a6e22e&#34;&gt;ncol&lt;/span&gt;(A)
+  &lt;span style=&#34;color:#a6e22e&#34;&gt;if &lt;/span&gt;(m &lt;span style=&#34;color:#f92672&#34;&gt;&amp;lt;&lt;/span&gt; n)
+    &lt;span style=&#34;color:#a6e22e&#34;&gt;stop&lt;/span&gt;(&lt;span style=&#34;color:#e6db74&#34;&gt;&amp;#34;only implemented for m&amp;gt;n&amp;#34;&lt;/span&gt;)
+  
+  nc &lt;span style=&#34;color:#f92672&#34;&gt;=&lt;/span&gt; &lt;span style=&#34;color:#a6e22e&#34;&gt;min&lt;/span&gt;(n, k)
+  
+  kl &lt;span style=&#34;color:#f92672&#34;&gt;=&lt;/span&gt; &lt;span style=&#34;color:#ae81ff&#34;&gt;2&lt;/span&gt;&lt;span style=&#34;color:#f92672&#34;&gt;*&lt;/span&gt;k &lt;span style=&#34;color:#75715e&#34;&gt;# double the lanczos iterations&lt;/span&gt;
+  
+  H &lt;span style=&#34;color:#f92672&#34;&gt;=&lt;/span&gt; &lt;span style=&#34;color:#a6e22e&#34;&gt;square_up&lt;/span&gt;(A)
+  lz &lt;span style=&#34;color:#f92672&#34;&gt;=&lt;/span&gt; &lt;span style=&#34;color:#a6e22e&#34;&gt;lanczos&lt;/span&gt;(H, k&lt;span style=&#34;color:#f92672&#34;&gt;=&lt;/span&gt;kl)
+  T_kl &lt;span style=&#34;color:#f92672&#34;&gt;=&lt;/span&gt; &lt;span style=&#34;color:#a6e22e&#34;&gt;tridiagonal&lt;/span&gt;(lz&lt;span style=&#34;color:#f92672&#34;&gt;$&lt;/span&gt;alpha, lz&lt;span style=&#34;color:#f92672&#34;&gt;$&lt;/span&gt;beta)
+  
+  ev &lt;span style=&#34;color:#f92672&#34;&gt;=&lt;/span&gt; &lt;span style=&#34;color:#a6e22e&#34;&gt;eigen&lt;/span&gt;(T_kl, symmetric&lt;span style=&#34;color:#f92672&#34;&gt;=&lt;/span&gt;&lt;span style=&#34;color:#66d9ef&#34;&gt;TRUE&lt;/span&gt;, only.values&lt;span style=&#34;color:#f92672&#34;&gt;=&lt;/span&gt;only.values)
+  d &lt;span style=&#34;color:#f92672&#34;&gt;=&lt;/span&gt; ev&lt;span style=&#34;color:#f92672&#34;&gt;$&lt;/span&gt;values[1&lt;span style=&#34;color:#f92672&#34;&gt;:&lt;/span&gt;nc]
+  
+  &lt;span style=&#34;color:#a6e22e&#34;&gt;if &lt;/span&gt;(&lt;span style=&#34;color:#f92672&#34;&gt;!&lt;/span&gt;only.values)
+  {
+    UV &lt;span style=&#34;color:#f92672&#34;&gt;=&lt;/span&gt; &lt;span style=&#34;color:#a6e22e&#34;&gt;sqrt&lt;/span&gt;(&lt;span style=&#34;color:#ae81ff&#34;&gt;2&lt;/span&gt;) &lt;span style=&#34;color:#f92672&#34;&gt;*&lt;/span&gt; (lz&lt;span style=&#34;color:#f92672&#34;&gt;$&lt;/span&gt;q &lt;span style=&#34;color:#f92672&#34;&gt;%*%&lt;/span&gt; ev&lt;span style=&#34;color:#f92672&#34;&gt;$&lt;/span&gt;vectors)
+    u &lt;span style=&#34;color:#f92672&#34;&gt;=&lt;/span&gt; UV[1&lt;span style=&#34;color:#f92672&#34;&gt;:&lt;/span&gt;m, &lt;span style=&#34;color:#ae81ff&#34;&gt;1&lt;/span&gt;&lt;span style=&#34;color:#f92672&#34;&gt;:&lt;/span&gt;nc]
+    v &lt;span style=&#34;color:#f92672&#34;&gt;=&lt;/span&gt; UV&lt;span style=&#34;color:#a6e22e&#34;&gt;[&lt;/span&gt;(m&lt;span style=&#34;color:#ae81ff&#34;&gt;+1&lt;/span&gt;)&lt;span style=&#34;color:#f92672&#34;&gt;:&lt;/span&gt;(m&lt;span style=&#34;color:#f92672&#34;&gt;+&lt;/span&gt;n), &lt;span style=&#34;color:#ae81ff&#34;&gt;1&lt;/span&gt;&lt;span style=&#34;color:#f92672&#34;&gt;:&lt;/span&gt;nc]
+  }
+  else
+  {
+    u &lt;span style=&#34;color:#f92672&#34;&gt;=&lt;/span&gt; &lt;span style=&#34;color:#66d9ef&#34;&gt;NULL&lt;/span&gt;
+    v &lt;span style=&#34;color:#f92672&#34;&gt;=&lt;/span&gt; &lt;span style=&#34;color:#66d9ef&#34;&gt;NULL&lt;/span&gt;
+  }
+  
+  &lt;span style=&#34;color:#a6e22e&#34;&gt;list&lt;/span&gt;(d&lt;span style=&#34;color:#f92672&#34;&gt;=&lt;/span&gt;d, u&lt;span style=&#34;color:#f92672&#34;&gt;=&lt;/span&gt;u, v&lt;span style=&#34;color:#f92672&#34;&gt;=&lt;/span&gt;v)
+}
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;p&gt;And here&amp;rsquo;s a simple demonstration&lt;/p&gt;
+&lt;div class=&#34;highlight&#34;&gt;&lt;pre style=&#34;color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4&#34;&gt;&lt;code class=&#34;language-r&#34; data-lang=&#34;r&#34;&gt;
+&lt;span style=&#34;color:#a6e22e&#34;&gt;set.seed&lt;/span&gt;(&lt;span style=&#34;color:#ae81ff&#34;&gt;1234&lt;/span&gt;)
+m &lt;span style=&#34;color:#f92672&#34;&gt;=&lt;/span&gt; &lt;span style=&#34;color:#ae81ff&#34;&gt;300&lt;/span&gt;
+n &lt;span style=&#34;color:#f92672&#34;&gt;=&lt;/span&gt; &lt;span style=&#34;color:#ae81ff&#34;&gt;10&lt;/span&gt;
+x &lt;span style=&#34;color:#f92672&#34;&gt;=&lt;/span&gt; &lt;span style=&#34;color:#a6e22e&#34;&gt;matrix&lt;/span&gt;(&lt;span style=&#34;color:#a6e22e&#34;&gt;rnorm&lt;/span&gt;(m&lt;span style=&#34;color:#f92672&#34;&gt;*&lt;/span&gt;n), m, n)
+
+k &lt;span style=&#34;color:#f92672&#34;&gt;=&lt;/span&gt; &lt;span style=&#34;color:#ae81ff&#34;&gt;3&lt;/span&gt;
+lz &lt;span style=&#34;color:#f92672&#34;&gt;=&lt;/span&gt; &lt;span style=&#34;color:#a6e22e&#34;&gt;lanczos_svd&lt;/span&gt;(x, k&lt;span style=&#34;color:#f92672&#34;&gt;=&lt;/span&gt;k, &lt;span style=&#34;color:#66d9ef&#34;&gt;FALSE&lt;/span&gt;)
+sv &lt;span style=&#34;color:#f92672&#34;&gt;=&lt;/span&gt; &lt;span style=&#34;color:#a6e22e&#34;&gt;svd&lt;/span&gt;(x)
+
+&lt;span style=&#34;color:#a6e22e&#34;&gt;round&lt;/span&gt;(lz&lt;span style=&#34;color:#f92672&#34;&gt;$&lt;/span&gt;d, &lt;span style=&#34;color:#ae81ff&#34;&gt;5&lt;/span&gt;)
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;pre&gt;&lt;code&gt;[1] 18.43443 15.83699  0.00160
+&lt;/code&gt;&lt;/pre&gt;
+&lt;div class=&#34;highlight&#34;&gt;&lt;pre style=&#34;color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4&#34;&gt;&lt;code class=&#34;language-r&#34; data-lang=&#34;r&#34;&gt;&lt;span style=&#34;color:#a6e22e&#34;&gt;round&lt;/span&gt;(sv&lt;span style=&#34;color:#f92672&#34;&gt;$&lt;/span&gt;d[1&lt;span style=&#34;color:#f92672&#34;&gt;:&lt;/span&gt;k], &lt;span style=&#34;color:#ae81ff&#34;&gt;5&lt;/span&gt;)
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;pre&gt;&lt;code&gt;[1] 19.69018 18.65107 18.41093
+&lt;/code&gt;&lt;/pre&gt;
+&lt;div class=&#34;highlight&#34;&gt;&lt;pre style=&#34;color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4&#34;&gt;&lt;code class=&#34;language-r&#34; data-lang=&#34;r&#34;&gt;firstfew &lt;span style=&#34;color:#f92672&#34;&gt;=&lt;/span&gt; &lt;span style=&#34;color:#ae81ff&#34;&gt;1&lt;/span&gt;&lt;span style=&#34;color:#f92672&#34;&gt;:&lt;/span&gt;&lt;span style=&#34;color:#ae81ff&#34;&gt;4&lt;/span&gt;
+&lt;span style=&#34;color:#a6e22e&#34;&gt;round&lt;/span&gt;(lz&lt;span style=&#34;color:#f92672&#34;&gt;$&lt;/span&gt;v[firstfew, ], &lt;span style=&#34;color:#ae81ff&#34;&gt;5&lt;/span&gt;)
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;pre&gt;&lt;code&gt;        [,1]    [,2]     [,3]
+[1,] 0.40748 0.02210 -0.00228
+[2,] 0.21097 0.18573 -0.00051
+[3,] 0.13179 0.01563 -0.00411
+[4,] 0.39096 0.27893 -0.00117
+&lt;/code&gt;&lt;/pre&gt;
+&lt;div class=&#34;highlight&#34;&gt;&lt;pre style=&#34;color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4&#34;&gt;&lt;code class=&#34;language-r&#34; data-lang=&#34;r&#34;&gt;&lt;span style=&#34;color:#a6e22e&#34;&gt;round&lt;/span&gt;(sv&lt;span style=&#34;color:#f92672&#34;&gt;$&lt;/span&gt;v[firstfew, &lt;span style=&#34;color:#ae81ff&#34;&gt;1&lt;/span&gt;&lt;span style=&#34;color:#f92672&#34;&gt;:&lt;/span&gt;k], &lt;span style=&#34;color:#ae81ff&#34;&gt;5&lt;/span&gt;)
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;pre&gt;&lt;code&gt;        [,1]     [,2]     [,3]
+[1,] 0.44829 -0.28028 -0.06481
+[2,] 0.18420  0.00095  0.67200
+[3,] 0.07991  0.01054 -0.14656
+[4,] 0.16961 -0.27779 -0.37683
+&lt;/code&gt;&lt;/pre&gt;
+&lt;section class=&#34;footnotes&#34; role=&#34;doc-endnotes&#34;&gt;
+&lt;hr&gt;
+&lt;ol&gt;
+&lt;li id=&#34;fn:1&#34; role=&#34;doc-endnote&#34;&gt;
+&lt;p&gt;Golub, Gene H., and Charles F. Van Loan. &lt;em&gt;Matrix computations&lt;/em&gt;. Vol. 3. JHU press, 2012. &lt;a href=&#34;#fnref:1&#34; class=&#34;footnote-backref&#34; role=&#34;doc-backlink&#34;&gt;&amp;#x21a9;&amp;#xfe0e;&lt;/a&gt;&lt;/p&gt;
+&lt;/li&gt;
+&lt;li id=&#34;fn:2&#34; role=&#34;doc-endnote&#34;&gt;
+&lt;p&gt;Trefethen, Lloyd N., and David Bau III. &lt;em&gt;&lt;a href=&#34;https://www.cs.cmu.edu/afs/cs/academic/class/15859n-f16/Handouts/TrefethenBau/LanczosIteration-36.pdf&#34;&gt;Numerical linear algebra&lt;/a&gt;&lt;/em&gt;. Vol. 50. Siam, 1997. &lt;a href=&#34;#fnref:2&#34; class=&#34;footnote-backref&#34; role=&#34;doc-backlink&#34;&gt;&amp;#x21a9;&amp;#xfe0e;&lt;/a&gt;&lt;/p&gt;
+&lt;/li&gt;
+&lt;li id=&#34;fn:3&#34; role=&#34;doc-endnote&#34;&gt;
+&lt;p&gt;Caramanis and Sanghavi, &lt;em&gt;&lt;a href=&#34;http://users.ece.utexas.edu/~sanghavi/courses/scribed_notes/Lecture_13_and_14_Scribe_Notes.pdf&#34;&gt;Large scale learning: lecture 12&lt;/a&gt;&lt;/em&gt;. (&lt;a href=&#34;https://web.archive.org/web/20171215080524/http://users.ece.utexas.edu/~sanghavi/courses/scribed_notes/Lecture_13_and_14_Scribe_Notes.pdf&#34;&gt;archive.org link&lt;/a&gt;) &lt;a href=&#34;#fnref:3&#34; class=&#34;footnote-backref&#34; role=&#34;doc-backlink&#34;&gt;&amp;#x21a9;&amp;#xfe0e;&lt;/a&gt;&lt;/p&gt;
+&lt;/li&gt;
+&lt;li id=&#34;fn:4&#34; role=&#34;doc-endnote&#34;&gt;
+&lt;p&gt;Demmel, James W. &lt;em&gt;&lt;a href=&#34;https://books.google.com/books?hl=en&amp;amp;lr=&amp;amp;id=P3bPAgAAQBAJ&amp;amp;oi=fnd&amp;amp;pg=PR9&amp;amp;dq=applied+numerical+linear+algebra+demmel&amp;amp;ots=I7OxKaWh-y&amp;amp;sig=QKRZPGe0SiuBstzxYCg4j35gctE#v=onepage&amp;amp;q=applied%20numerical%20linear%20algebra%20demmel&amp;amp;f=false&#34;&gt;Applied numerical linear algebra&lt;/a&gt;&lt;/em&gt;. Vol. 56. Siam, 1997. &lt;a href=&#34;#fnref:4&#34; class=&#34;footnote-backref&#34; role=&#34;doc-backlink&#34;&gt;&amp;#x21a9;&amp;#xfe0e;&lt;/a&gt;&lt;/p&gt;
+&lt;/li&gt;
+&lt;/ol&gt;
+&lt;/section&gt;
+</description>
+    </item>
+    
+    <item>
+      <title>Introducing fml - the Fused Matrix Library</title>
+      <link>/2020/06/09/introducing-fml-the-fused-matrix-library/</link>
+      <pubDate>Tue, 09 Jun 2020 00:00:00 +0000</pubDate>
+      
+      <guid>/2020/06/09/introducing-fml-the-fused-matrix-library/</guid>
+      <description>&lt;h2 id=&#34;what-is-fml&#34;&gt;What is fml?&lt;/h2&gt;
+&lt;p&gt;&lt;a href=&#34;https://github.com/fml-fam/fml&#34;&gt;fml&lt;/a&gt; is the Fused Matrix Library, a header-only C++14 library for dense matrix computing. The emphasis is on real-valued matrix types (&lt;code&gt;float&lt;/code&gt;, &lt;code&gt;double&lt;/code&gt;, and &lt;code&gt;__half&lt;/code&gt;) for numerical operations useful for data analysis.&lt;/p&gt;
+&lt;p&gt;The library provides 3 main classes: &lt;code&gt;cpumat&lt;/code&gt;, &lt;code&gt;gpumat&lt;/code&gt;, and &lt;code&gt;mpimat&lt;/code&gt;. There is currently an experimental &lt;code&gt;parmat&lt;/code&gt; class, but it is at present not well developed. For the main classes:&lt;/p&gt;
+&lt;ul&gt;
+&lt;li&gt;CPU: Single node cpu computing (multi-threaded if using multi-threaded BLAS and linking with OpenMP).&lt;/li&gt;
+&lt;li&gt;GPU: Single gpu computing.&lt;/li&gt;
+&lt;li&gt;MPI: Multi-node computing via ScaLAPACK (+gpus if using &lt;a href=&#34;http://icl.utk.edu/slate/&#34;&gt;SLATE&lt;/a&gt;).&lt;/li&gt;
+&lt;/ul&gt;
+&lt;p&gt;There are some differences in how objects of any particular type are constructed. But the high level APIs are largely the same between the objects. The goal is to be able to quickly create laptop-scale prototypes that are then easily converted into large scale gpu/multi-node/multi-gpu/multi-node+multi-gpu codes.&lt;/p&gt;
+&lt;h3 id=&#34;example&#34;&gt;Example&lt;/h3&gt;
+&lt;p&gt;Here&amp;rsquo;s a quick example computing the singular values of a simple CPU matrix:&lt;/p&gt;
+&lt;div class=&#34;highlight&#34;&gt;&lt;pre style=&#34;color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4&#34;&gt;&lt;code class=&#34;language-c++&#34; data-lang=&#34;c++&#34;&gt;&lt;span style=&#34;color:#75715e&#34;&gt;#include&lt;/span&gt; &lt;span style=&#34;color:#75715e&#34;&gt;&amp;lt;fml/cpu.hh&amp;gt;&lt;/span&gt;&lt;span style=&#34;color:#75715e&#34;&gt;
+&lt;/span&gt;&lt;span style=&#34;color:#75715e&#34;&gt;&lt;/span&gt;
+&lt;span style=&#34;color:#66d9ef&#34;&gt;int&lt;/span&gt; &lt;span style=&#34;color:#a6e22e&#34;&gt;main&lt;/span&gt;()
+{
+  fml&lt;span style=&#34;color:#f92672&#34;&gt;::&lt;/span&gt;cpumat&lt;span style=&#34;color:#f92672&#34;&gt;&amp;lt;&lt;/span&gt;&lt;span style=&#34;color:#66d9ef&#34;&gt;float&lt;/span&gt;&lt;span style=&#34;color:#f92672&#34;&gt;&amp;gt;&lt;/span&gt; x(&lt;span style=&#34;color:#ae81ff&#34;&gt;3&lt;/span&gt;, &lt;span style=&#34;color:#ae81ff&#34;&gt;2&lt;/span&gt;);
+  x.fill_linspace(&lt;span style=&#34;color:#ae81ff&#34;&gt;1&lt;/span&gt;, &lt;span style=&#34;color:#ae81ff&#34;&gt;6&lt;/span&gt;);
+  
+  x.info();
+  x.print(&lt;span style=&#34;color:#ae81ff&#34;&gt;0&lt;/span&gt;);
+  
+  fml&lt;span style=&#34;color:#f92672&#34;&gt;::&lt;/span&gt;cpuvec&lt;span style=&#34;color:#f92672&#34;&gt;&amp;lt;&lt;/span&gt;&lt;span style=&#34;color:#66d9ef&#34;&gt;float&lt;/span&gt;&lt;span style=&#34;color:#f92672&#34;&gt;&amp;gt;&lt;/span&gt; s;
+  fml&lt;span style=&#34;color:#f92672&#34;&gt;::&lt;/span&gt;linalg&lt;span style=&#34;color:#f92672&#34;&gt;::&lt;/span&gt;svd(x, s);
+  
+  s.info();
+  s.print();
+  
+  &lt;span style=&#34;color:#66d9ef&#34;&gt;return&lt;/span&gt; &lt;span style=&#34;color:#ae81ff&#34;&gt;0&lt;/span&gt;;
+}
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;p&gt;If we save this in &lt;code&gt;svd.cpp&lt;/code&gt;, we can compile it with something like:&lt;/p&gt;
+&lt;pre&gt;&lt;code&gt;g++ -I/path/to/fml/src -fopenmp svd.cpp -o svd -llapack -lblas
+&lt;/code&gt;&lt;/pre&gt;&lt;p&gt;And then running it, we see:&lt;/p&gt;
+&lt;pre&gt;&lt;code&gt;# cpumat 3x2 type=f
+1 4 
+2 5 
+3 6 
+
+# cpuvec 2 type=f
+9.5080 0.7729 
+&lt;/code&gt;&lt;/pre&gt;&lt;p&gt;With only minor modifications, we can do this same operation on a GPU:&lt;/p&gt;
+&lt;div class=&#34;highlight&#34;&gt;&lt;pre style=&#34;color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4&#34;&gt;&lt;code class=&#34;language-c++&#34; data-lang=&#34;c++&#34;&gt;&lt;span style=&#34;color:#75715e&#34;&gt;#include&lt;/span&gt; &lt;span style=&#34;color:#75715e&#34;&gt;&amp;lt;fml/gpu.hh&amp;gt;&lt;/span&gt;&lt;span style=&#34;color:#75715e&#34;&gt;
+&lt;/span&gt;&lt;span style=&#34;color:#75715e&#34;&gt;&lt;/span&gt;
+&lt;span style=&#34;color:#66d9ef&#34;&gt;int&lt;/span&gt; &lt;span style=&#34;color:#a6e22e&#34;&gt;main&lt;/span&gt;()
+{
+  &lt;span style=&#34;color:#66d9ef&#34;&gt;auto&lt;/span&gt; c &lt;span style=&#34;color:#f92672&#34;&gt;=&lt;/span&gt; fml&lt;span style=&#34;color:#f92672&#34;&gt;::&lt;/span&gt;new_card(&lt;span style=&#34;color:#ae81ff&#34;&gt;0&lt;/span&gt;);
+  c.info();
+  
+  fml&lt;span style=&#34;color:#f92672&#34;&gt;::&lt;/span&gt;gpumat&lt;span style=&#34;color:#f92672&#34;&gt;&amp;lt;&lt;/span&gt;&lt;span style=&#34;color:#66d9ef&#34;&gt;float&lt;/span&gt;&lt;span style=&#34;color:#f92672&#34;&gt;&amp;gt;&lt;/span&gt; x(c, &lt;span style=&#34;color:#ae81ff&#34;&gt;3&lt;/span&gt;, &lt;span style=&#34;color:#ae81ff&#34;&gt;2&lt;/span&gt;);
+  x.fill_linspace(&lt;span style=&#34;color:#ae81ff&#34;&gt;1&lt;/span&gt;, &lt;span style=&#34;color:#ae81ff&#34;&gt;6&lt;/span&gt;);
+  
+  x.info();
+  x.print(&lt;span style=&#34;color:#ae81ff&#34;&gt;0&lt;/span&gt;);
+  
+  fml&lt;span style=&#34;color:#f92672&#34;&gt;::&lt;/span&gt;gpuvec&lt;span style=&#34;color:#f92672&#34;&gt;&amp;lt;&lt;/span&gt;&lt;span style=&#34;color:#66d9ef&#34;&gt;float&lt;/span&gt;&lt;span style=&#34;color:#f92672&#34;&gt;&amp;gt;&lt;/span&gt; s(c);
+  fml&lt;span style=&#34;color:#f92672&#34;&gt;::&lt;/span&gt;linalg&lt;span style=&#34;color:#f92672&#34;&gt;::&lt;/span&gt;svd(x, s);
+  
+  s.info();
+  s.print();
+  
+  &lt;span style=&#34;color:#66d9ef&#34;&gt;return&lt;/span&gt; &lt;span style=&#34;color:#ae81ff&#34;&gt;0&lt;/span&gt;;
+}
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;p&gt;If we save this in &lt;code&gt;svd.cu&lt;/code&gt;, we can compile it with something like:&lt;/p&gt;
+&lt;pre&gt;&lt;code&gt;nvcc -arch=sm_61 -Xcompiler &amp;quot;-I/path/to/fml/src&amp;quot; svd.cu -o svd -lcudart -lcublas -lcusolver -lcurand -lnvidia-ml
+&lt;/code&gt;&lt;/pre&gt;&lt;p&gt;And then running it, we see:&lt;/p&gt;
+&lt;pre&gt;&lt;code&gt;## GPU 0 (GeForce GTX 1070 Ti) 860/8116 MB - CUDA 10.2
+
+# gpumat 3x2 type=f 
+1 4 
+2 5 
+3 6 
+
+# gpuvec 2 type=f 
+9.5080 0.7729 
+&lt;/code&gt;&lt;/pre&gt;&lt;h2 id=&#34;the-interface&#34;&gt;The Interface&lt;/h2&gt;
+&lt;p&gt;I think that one person&amp;rsquo;s high-level is another person&amp;rsquo;s low-level. With that in mind, the goal of fml is to be &amp;ldquo;medium-level&amp;rdquo;. It&amp;rsquo;s high-level compared to working directly with e.g. the BLAS or cuBLAS, but low(er)-level compared to most other C++ matrix frameworks.&lt;/p&gt;
+&lt;p&gt;If you want to learn more about the interface, you can read the &lt;a href=&#34;https://fml-fam.github.io/fml/html/index.html&#34;&gt;doxygen documentation&lt;/a&gt;. There are also some &lt;a href=&#34;https://github.com/fml-fam/fml/tree/master/examples&#34;&gt;basic examples&lt;/a&gt;.&lt;/p&gt;
+&lt;p&gt;I also maintain R bindings in the &lt;a href=&#34;https://github.com/fml-fam/fmlr&#34;&gt;fmlr&lt;/a&gt; package. That may be a good place to start, and in some ways the package behaves like an interactive REPL for fml with only some minor modifications (e.g., replace &lt;code&gt;x.method()&lt;/code&gt; with &lt;code&gt;x$method()&lt;/code&gt;). The package is &lt;a href=&#34;https://fml-fam.github.io/fmlr/html/index.html&#34;&gt;well-documented&lt;/a&gt;, and contains some articles that are useful even for fml if you are not familiar with working with HPC libraries.&lt;/p&gt;
+&lt;p&gt;There is also a high-level R interface, called &lt;a href=&#34;https://github.com/fml-fam/craze&#34;&gt;craze&lt;/a&gt; (the name is a play on the German word &amp;ldquo;fimmel&amp;rdquo;). The package is meant for people who only know R and want to run some math operations on a GPU with minimal effort.&lt;/p&gt;
+&lt;p&gt;I will have much more to say about both fmlr and craze in a later post.&lt;/p&gt;
+&lt;h3 id=&#34;philosophy-and-similar-projects&#34;&gt;Philosophy and Similar Projects&lt;/h3&gt;
+&lt;p&gt;I think it&amp;rsquo;s really important to mention prior art, even if it didn&amp;rsquo;t directly inspire your work.&lt;/p&gt;
+&lt;p&gt;There are many high quality C/C++ matrix libraries. Of course &lt;a href=&#34;http://arma.sourceforge.net/&#34;&gt;Armadillo&lt;/a&gt; and &lt;a href=&#34;http://eigen.tuxfamily.org/&#34;&gt;Eigen&lt;/a&gt; are worth mentioning. &lt;a href=&#34;http://www.boost.org/&#34;&gt;Boost&lt;/a&gt; also has matrix bindings. &lt;a href=&#34;https://www.gnu.org/software/gsl/&#34;&gt;GSL&lt;/a&gt; is a C library with numerous matrix operations. There is also &lt;a href=&#34;https://www.mcs.anl.gov/petsc/&#34;&gt;PETSc&lt;/a&gt;, which can do some distributed operations, although it is mostly focused on sparse matrices.&lt;/p&gt;
+&lt;p&gt;With the exception of GSL, all of these are permissively licensed. Some have at least some level of GPU support, for example Armadillo and Eigen (perhaps others).&lt;/p&gt;
+&lt;p&gt;But I believe it is fair to say that none of these projects satisfies all of&lt;/p&gt;
+&lt;ul&gt;
+&lt;li&gt;Permissively licensed.&lt;/li&gt;
+&lt;li&gt;Single interface for CPU, GPU, and MPI backends (and multiple fundamental types).&lt;/li&gt;
+&lt;li&gt;All functions support all backends.&lt;/li&gt;
+&lt;li&gt;Only do the least amount of work necessary (e.g., QR factorization returns the compact QR and separate functions can compute Q and/or R).&lt;/li&gt;
+&lt;/ul&gt;
+&lt;p&gt;That&amp;rsquo;s essentially the goal of fml. Now, this doesn&amp;rsquo;t mean that I believe fml is &amp;ldquo;better&amp;rdquo; or anything. Just that it is distinct. I believe this offers something legitimately new.&lt;/p&gt;
+</description>
+    </item>
+    
+    <item>
+      <title>Calculating Matrix Condition Numbers</title>
+      <link>/2020/06/08/calculating-matrix-condition-numbers/</link>
+      <pubDate>Mon, 08 Jun 2020 00:00:00 +0000</pubDate>
+      
+      <guid>/2020/06/08/calculating-matrix-condition-numbers/</guid>
+      <description>&lt;p&gt;Throughout, we assume that all matrices are real-valued.&lt;/p&gt;
+&lt;p&gt;The &lt;a href=&#34;https://en.wikipedia.org/wiki/Condition_number#Matrices&#34;&gt;condition number&lt;/a&gt; of a matrix (relative to a norm) is an important concept in numerical analysis. If $A$ is square, then for any norm you would care about, the condition number $\kappa$ of $A$ is:&lt;/p&gt;
+&lt;p&gt;$$\kappa(A) = \lVert A \rVert \cdot \lVert A^{-1} \rVert$$&lt;/p&gt;
+&lt;p&gt;But in the much more typical case for data analysis where $A$ is non-square$, then we have:&lt;/p&gt;
+&lt;p&gt;$$\kappa(A) = \lVert A \rVert \cdot \lVert A^+ \rVert$$&lt;/p&gt;
+&lt;p&gt;where $A^+$ is a &lt;a href=&#34;https://en.wikipedia.org/wiki/Moore%E2%80%93Penrose_inverse#Definition&#34;&gt;pseudo inverse&lt;/a&gt;. For the moment, we will assume that $A$ &lt;strong&gt;has more rows than columns&lt;/strong&gt;, and we will use the left pseudo inverse:&lt;/p&gt;
+&lt;p&gt;$$A^+ = \left(A^T A\right)^{-1} A^T$$&lt;/p&gt;
+&lt;p&gt;There is a special case for the $l_2$ norm where the condition number $\kappa(A)$ is exactly the ratio of largest to smallest singular values. For other norms, we will use the &lt;a href=&#34;https://en.wikipedia.org/wiki/QR_decomposition&#34;&gt;QR factorization&lt;/a&gt;. Factor $A=QR$, where $R$ is upper triangular, $Q^TQ = I$, and $\kappa(Q) = \kappa(Q^T) = 1$. Then&lt;/p&gt;
+&lt;p&gt;$$
+\begin{align*}
+A^+ &amp;amp;= \left(QR\right)^+ \\&lt;br&gt;
+&amp;amp;= \left(\left(QR\right)^T \left(QR\right)\right)^{-1} \left(QR\right)^T \\&lt;br&gt;
+&amp;amp;= \left(R^T R\right)^{-1} R^T Q^T \\&lt;br&gt;
+&amp;amp;= R^{-1} \left(R^T\right)^{-1} R^T Q^T \\&lt;br&gt;
+&amp;amp;= R^{-1} Q^T
+\end{align*}
+$$&lt;/p&gt;
+&lt;p&gt;And so&lt;/p&gt;
+&lt;p&gt;$$
+\begin{align*}
+\lVert A^+ \rVert &amp;amp;= \lVert R^{-1} Q^T \rVert \\&lt;br&gt;
+&amp;amp;= \lVert R^{-1} \rVert \cdot \lVert Q^T \rVert \\&lt;br&gt;
+&amp;amp;= \lVert R^{-1} \rVert \cdot 1
+\end{align*}
+$$&lt;/p&gt;
+&lt;p&gt;Which gives&lt;/p&gt;
+&lt;p&gt;$$
+\begin{align*}
+\kappa(A) &amp;amp;= \lVert A \rVert \cdot \lVert A^+ \rVert \\&lt;br&gt;
+&amp;amp;= \lVert R \rVert \cdot \lVert R^{-1} \rVert
+\end{align*}
+$$&lt;/p&gt;
+&lt;p&gt;A similar analysis shows that if $A$ has more columns than rows and $A = LQ$, that&lt;/p&gt;
+&lt;p&gt;$$
+\begin{align*}
+\kappa(A) &amp;amp;= \lVert L \rVert \cdot \lVert L^{-1} \rVert
+\end{align*}
+$$&lt;/p&gt;
+&lt;p&gt;Of course, there is nothing mathematically preventing us from using QR (rather than LQ) in this case. But computationally, we want to pick whichever is cheaper.&lt;/p&gt;
+&lt;p&gt;To implement this for CPU data, as in the fml CPU backend, you would want to use the LAPACK functions for this purpose. If the matrix is square, you factor it as $A=LU$ and use the &lt;a href=&#34;https://www.netlib.org/lapack/explore-3.1.1-html/dgecon.f.html&#34;&gt;&lt;code&gt;Xgecon()&lt;/code&gt; function&lt;/a&gt;. For non-square, then you use the analysis above and use the $R$/$L$ matrix (whichever is smaller) in the &lt;a href=&#34;https://www.netlib.org/lapack/explore-3.1.1-html/dtrcon.f.html&#34;&gt;&lt;code&gt;Xtrcon()&lt;/code&gt; function&lt;/a&gt; function. These actually estimate the reciprocal of the condition number, but that is good enough. This is how R&amp;rsquo;s &lt;a href=&#34;https://www.rdocumentation.org/packages/vcd/versions/1.4-7/topics/Kappa&#34;&gt;kappa function&lt;/a&gt; works, except that they do a QR on the transpose if the input matrix has more columns than rows. There are people in R core who know what an LQ factorization is, but they stubbornly refuse to acknowledge its existence for some reason.&lt;/p&gt;
+&lt;p&gt;If you are using ScaLAPACK, as with the fml MPI backend, then you just use the ScaLAPACK variants of these functions, namely &lt;a href=&#34;https://www.netlib.org/scalapack/explore-html/db/d61/pdgecon_8f_source.html&#34;&gt;&lt;code&gt;pXgecon()&lt;/code&gt;&lt;/a&gt; and &lt;a href=&#34;https://www.netlib.org/scalapack/explore-html/d2/de5/pdtrcon_8f_source.html&#34;&gt;&lt;code&gt;pXtrcon()&lt;/code&gt;&lt;/a&gt;.&lt;/p&gt;
+&lt;p&gt;For GPU programming, as with the fml GPU backend, the options are more limited. At the time of writing, to my knowledge, neither &lt;a href=&#34;https://docs.nvidia.com/cuda/cusolver/index.html&#34;&gt;cuSOLVER&lt;/a&gt; nor &lt;a href=&#34;https://icl.cs.utk.edu/magma/&#34;&gt;MAGMA&lt;/a&gt; offer any GPU &lt;code&gt;gecon()&lt;/code&gt;/&lt;code&gt;trcon()&lt;/code&gt; variants. So in fml, we actually just calculate the norm of $A$ and multiply it against $A^{-1}$ if $A$ is square, or the norm of $R^{-1}$/$L^{-1}$ otherwise.&lt;/p&gt;
+</description>
+    </item>
+    
+    <item>
+      <title>Introducing fmlr</title>
+      <link>/2020/06/05/introducing-fmlr/</link>
+      <pubDate>Fri, 05 Jun 2020 00:00:00 +0000</pubDate>
+      
+      <guid>/2020/06/05/introducing-fmlr/</guid>
+      <description>&lt;p&gt;not compare&lt;/p&gt;
+&lt;p&gt;For one, I think this shows that I&amp;rsquo;ve been thinking about this for a long time. And the approach here may seem very strange, but it&amp;rsquo;s for a good reason. And two, this approach isn&amp;rsquo;t really &amp;ldquo;better&amp;rdquo; or &amp;ldquo;worse&amp;rdquo; than another. It comes with advantages and disadvantages.&lt;/p&gt;
+&lt;h2 id=&#34;philosophy-and-similar-projects&#34;&gt;Philosophy and Similar Projects&lt;/h2&gt;
+&lt;p&gt;Some similar C/C++ projects worth mentioning:&lt;/p&gt;
+&lt;ul&gt;
+&lt;li&gt;&lt;a href=&#34;http://arma.sourceforge.net/&#34;&gt;Armadillo&lt;/a&gt;&lt;/li&gt;
+&lt;li&gt;&lt;a href=&#34;http://eigen.tuxfamily.org/&#34;&gt;Eigen&lt;/a&gt;&lt;/li&gt;
+&lt;li&gt;&lt;a href=&#34;http://www.boost.org/&#34;&gt;Boost&lt;/a&gt;&lt;/li&gt;
+&lt;li&gt;&lt;a href=&#34;https://www.mcs.anl.gov/petsc/&#34;&gt;PETSc&lt;/a&gt;&lt;/li&gt;
+&lt;li&gt;&lt;a href=&#34;https://www.gnu.org/software/gsl/&#34;&gt;GSL&lt;/a&gt;&lt;/li&gt;
+&lt;/ul&gt;
+&lt;p&gt;Some similar R projects worth mentioning:&lt;/p&gt;
+&lt;ul&gt;
+&lt;li&gt;Martin Maechler&amp;rsquo;s (et al.) &lt;a href=&#34;https://cran.r-project.org/web/packages/Matrix/index.html&#34;&gt;Matrix package&lt;/a&gt;&lt;/li&gt;
+&lt;li&gt;Charles Determan&amp;rsquo;s &lt;a href=&#34;https://github.com/cdeterman/gpuR&#34;&gt;gpuR&lt;/a&gt; and &lt;a href=&#34;https://github.com/gpuRcore&#34;&gt;gpuR-related packages&lt;/a&gt;&lt;/li&gt;
+&lt;li&gt;Norm Matloff&amp;rsquo;s &lt;a href=&#34;https://github.com/Rth-org/Rth&#34;&gt;Rth&lt;/a&gt;&lt;/li&gt;
+&lt;/ul&gt;
+&lt;p&gt;Some related R packages I have worked on:&lt;/p&gt;
+&lt;ul&gt;
+&lt;li&gt;&lt;a href=&#34;https://github.com/wrathematics/float&#34;&gt;float&lt;/a&gt;&lt;/li&gt;
+&lt;li&gt;&lt;a href=&#34;https://github.com/RBigData/kazaam&#34;&gt;kazaam&lt;/a&gt;&lt;/li&gt;
+&lt;li&gt;&lt;a href=&#34;https://github.com/RBigData/pbdDMAT&#34;&gt;pbdDMAT&lt;/a&gt;&lt;/li&gt;
+&lt;/ul&gt;
+</description>
+    </item>
+    
+    <item>
+      <title>Orthogonal Factorizations</title>
+      <link>/2020/06/02/orthogonal-factorizations/</link>
+      <pubDate>Tue, 02 Jun 2020 00:00:00 +0000</pubDate>
+      
+      <guid>/2020/06/02/orthogonal-factorizations/</guid>
+      <description>&lt;p&gt;Integers can be factored into products of special kinds of integers with useful properties called primes. Similarly, matrices be factored into special kinds of matrices with useful properties.&lt;/p&gt;
+&lt;p&gt;Anyone who took a matrix algebra course in university has seen the &lt;a href=&#34;https://en.wikipedia.org/wiki/LU_decomposition&#34;&gt;LU decomposition&lt;/a&gt;. This is useful for things like solving square systems of equations and computing matrix inverses. Probably the most important/powerful of the factorizations is the &lt;a href=&#34;https://en.wikipedia.org/wiki/Singular_value_decomposition&#34;&gt;singular value decomposition&lt;/a&gt;.&lt;/p&gt;
+&lt;p&gt;&lt;a href=&#34;https://en.wikipedia.org/wiki/QR_decomposition&#34;&gt;QR factorization&lt;/a&gt;.&lt;/p&gt;
+&lt;p&gt;&lt;a href=&#34;https://en.wikipedia.org/wiki/QR_algorithm&#34;&gt;QR algorithm&lt;/a&gt;&lt;/p&gt;
+&lt;p&gt;Factor $A=QR$, where $R$ is upper triangular, $Q^TQ = I$&lt;/p&gt;
+</description>
+    </item>
+    
+    <item>
+      <title>SVD on a GPU with CUDA</title>
+      <link>/2020/06/01/svd-on-a-gpu-with-cuda/</link>
+      <pubDate>Mon, 01 Jun 2020 00:00:00 +0000</pubDate>
+      
+      <guid>/2020/06/01/svd-on-a-gpu-with-cuda/</guid>
+      <description>&lt;p&gt;TODO
+&lt;a href=&#34;https://en.wikipedia.org/wiki/Singular_value_decomposition&#34;&gt;singular value decomposition&lt;/a&gt;&lt;/p&gt;
+&lt;p&gt;$$ A = U \Sigma V^T $$&lt;/p&gt;
+&lt;p&gt;&lt;a href=&#34;https://docs.nvidia.com/cuda/cusolver/index.html&#34;&gt;cuSOLVER&lt;/a&gt;&lt;/p&gt;
+&lt;p&gt;jacobi algorithm&lt;/p&gt;
+&lt;h2 id=&#34;crossproduct--eigensolver&#34;&gt;Crossproduct + Eigensolver&lt;/h2&gt;
+&lt;p&gt;In the tall/skinny case where $m&amp;gt;n$, this is calculated by taking the eigenvalue decomposition of $A^TA$, or the &amp;ldquo;crossproducts matrix&amp;rdquo;. This matrix will be $n\times n$ (and so if $n$ is small, the matrix is small). The square root of its eigenvalues are the singular values of $A$, and its eigenvectors are the right singular vectors $V$ of $A$. The left singular vectors $U$ can be recovered by multiplying $A$ on the right by $V\Sigma^{-1}$.&lt;/p&gt;
+&lt;p&gt;Likewise, if $m&amp;lt;n$, then we can instead use $AA^T$ as our &amp;ldquo;crossproducts matrix&amp;rdquo;. The eigenvalues of this matrix are again the square of the singular values of $A$, only now its eigenvectors are the &lt;em&gt;left&lt;/em&gt; singular vectors $U$ of $A$.&lt;/p&gt;
+&lt;p&gt;A nice thing about this approach is that it&amp;rsquo;s pretty quick&lt;/p&gt;
+&lt;p&gt;&lt;a href=&#34;https://docs.nvidia.com/cuda/cusolver/index.html#cuSolverDN-lt-t-gt-gesvda&#34;&gt;gesvda&lt;/a&gt;.&lt;/p&gt;
+&lt;p&gt;The &amp;lsquo;a&amp;rsquo; in the function name is for &amp;ldquo;approximate&amp;rdquo;. There are worse names you could give it, although it&amp;rsquo;s not &amp;ldquo;approximate&amp;rdquo; in the sense of &lt;a href=&#34;https://arxiv.org/abs/0909.4061&#34;&gt;truncated SVD approximations&lt;/a&gt;. The issue is that by forming the crossproducts matrix, you are squaring the condition number, which is potentially a big deal for the numerical accuracy of the eigensolver. In practice, this is generally less of a big deal than the numerical mathematicians like to pretend.&lt;/p&gt;
+&lt;p&gt;This is the same as fml&amp;rsquo;s &lt;code&gt;linalg::cpsvd()&lt;/code&gt; except that &lt;code&gt;gesvda&lt;/code&gt; requires $m&amp;gt;n$ (and of course, fml&amp;rsquo;s works on CPU as well).&lt;/p&gt;
+&lt;h2 id=&#34;qr--svd&#34;&gt;QR + SVD&lt;/h2&gt;
+&lt;p&gt;Older versions of CUDA (pre 10.2) did not correctly handle non-square matrices in &lt;code&gt;gesvd()&lt;/code&gt;, which could lead to OOM-like scenarios for even small matrices. And at the time of writing, it does not handle the $m&amp;lt;n$ case. For either of these problems, we can use a QR (or LQ) to reduce the problem to a square matrix, and then call &lt;code&gt;gesvd()&lt;/code&gt;.&lt;/p&gt;
+&lt;p&gt;If $m&amp;gt;n$, then&lt;/p&gt;
+&lt;p&gt;$$
+\begin{align*}
+A &amp;amp;= QR \\&lt;br&gt;
+&amp;amp;= \left(Q U_R\right) \Sigma V^T
+\end{align*}
+$$&lt;/p&gt;
+&lt;p&gt;You can easily verify that in this case, $\Sigma$ is the singular values of both $A$ and $R$, and likewise the right singular vectors $V^T$. The left singular vectors of $A$ are $U=Q U_R$, where $U_R$ is the left singular vectors of $R$.&lt;/p&gt;
+&lt;p&gt;Similarly if $m&amp;lt;n$ we can use the LQ factorization&lt;/p&gt;
+&lt;p&gt;$$
+\begin{align*}
+A &amp;amp;= LQ \\&lt;br&gt;
+&amp;amp;= U \Sigma \left(V_L^T Q\right)
+\end{align*}
+$$&lt;/p&gt;
+&lt;p&gt;cuSOLVER provides a QR but not an LQ. In fml, we use cuSOLVER&amp;rsquo;s QR on a transpose.&lt;/p&gt;
+</description>
+    </item>
+    
+  </channel>
+</rss>
