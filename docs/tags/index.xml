@@ -2,22 +2,22 @@
 <rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom">
   <channel>
     <title>Tags on fml blog</title>
-    <link>/tags/</link>
+    <link>https://fml-fam.github.io/blog/tags/</link>
     <description>Recent content in Tags on fml blog</description>
     <generator>Hugo -- gohugo.io</generator>
     <language>en-us</language>
     <copyright>This work is licensed under a Creative Commons Attribution-ShareAlike 4.0 International License.</copyright>
     <lastBuildDate>Mon, 15 Jun 2020 00:00:00 +0000</lastBuildDate>
     
-	<atom:link href="/tags/index.xml" rel="self" type="application/rss+xml" />
+	<atom:link href="https://fml-fam.github.io/blog/tags/index.xml" rel="self" type="application/rss+xml" />
     
     
     <item>
       <title>math</title>
-      <link>/tags/math/</link>
+      <link>https://fml-fam.github.io/blog/tags/math/</link>
       <pubDate>Mon, 15 Jun 2020 00:00:00 +0000</pubDate>
       
-      <guid>/tags/math/</guid>
+      <guid>https://fml-fam.github.io/blog/tags/math/</guid>
       <description></description>
     </item>
     
