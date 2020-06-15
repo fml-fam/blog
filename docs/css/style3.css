@@ -10,7 +10,7 @@ body {
     margin-left: auto;
     margin-right: auto;
     width: 100%;
-    max-width: 1000px;
+    max-width: 52rem;
     min-height: 100%;
     box-sizing: border-box;
     display: block;
@@ -45,7 +45,7 @@ dd {
 
 h1 {
     font-size: 3rem;
-    max-width: 45rem;
+    max-width: 52rem;
 }
 
 h2 {
@@ -58,7 +58,7 @@ footer, footer p {
     padding: 1em 1em 4em;
     text-align: right;
     padding: 0;
-    max-width: 45rem;
+    max-width: 52rem;
 }
 
 footer {
@@ -68,7 +68,7 @@ header {
     clear: both;
     color: #777;
     text-align: right;
-    max-width: 45rem;
+    max-width: 52rem;
     border-style: solid;
     border-width: 3px;
     border-color: #777;
@@ -182,7 +182,7 @@ ol, ul, li, p, dd {
     -webkit-margin-end: 0;
     line-height: 1.77;
     font-size: 1.25rem;
-    max-width: 45rem;
+    max-width: 52rem;
 }
 
 @media screen and (min-width: 30em) and (max-width: 60em) {
