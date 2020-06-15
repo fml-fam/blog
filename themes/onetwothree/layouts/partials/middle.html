@@ -7,7 +7,7 @@
             {{ if .Params.tags }}
             &nbsp;&nbsp;///&nbsp;&nbsp;[
             <em>
-            {{ range $i, $e := .Params.tags }}{{ if $i }}, {{ end }}<a href="/tags/{{$e}}/">{{ $e }}</a>{{ end }}
+            {{ range $i, $e := .Params.tags }}{{ if $i }}, {{ end }}<a href="/blog/tags/{{$e}}/">{{ $e }}</a>{{ end }}
             </em>
             ]
 
