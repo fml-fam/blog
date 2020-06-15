@@ -176,10 +176,6 @@ table {
 }
 
 ol, ul, li, p, dd {
-    -webkit-margin-before: 1em;
-    -webkit-margin-after: 1em;
-    -webkit-margin-start: 0;
-    -webkit-margin-end: 0;
     line-height: 1.77;
     font-size: 1.25rem;
     max-width: 52rem;
