@@ -45,7 +45,7 @@ dd {
 
 h1 {
     font-size: 3rem;
-    max-width: 38rem;
+    max-width: 45rem;
 }
 
 h2 {
@@ -58,7 +58,7 @@ footer, footer p {
     padding: 1em 1em 4em;
     text-align: right;
     padding: 0;
-    max-width: 38rem;
+    max-width: 45rem;
 }
 
 footer {
@@ -68,7 +68,7 @@ header {
     clear: both;
     color: #777;
     text-align: right;
-    max-width: 38rem;
+    max-width: 45rem;
     border-style: solid;
     border-width: 3px;
     border-color: #777;
@@ -182,7 +182,7 @@ ol, ul, li, p, dd {
     -webkit-margin-end: 0;
     line-height: 1.77;
     font-size: 1.25rem;
-    max-width: 38rem;
+    max-width: 45rem;
 }
 
 @media screen and (min-width: 30em) and (max-width: 60em) {
