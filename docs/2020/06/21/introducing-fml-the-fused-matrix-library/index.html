@@ -1,0 +1,238 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+	<meta charset="utf-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1">
+	
+	<title>Introducing fml - the Fused Matrix Library</title>
+	
+	<meta name="description" content="">
+	<meta name="image" content="">
+	
+	<meta itemprop="name" content="Introducing fml - the Fused Matrix Library">
+	<meta itemprop="description" content="">
+	<meta itemprop="image" content="">
+	
+	<meta name="og:title" content="Introducing fml - the Fused Matrix Library">
+	<meta name="og:description" content="">
+	
+	<meta name="og:url" content="https://fml-fam.github.io/blog/2020/06/21/introducing-fml-the-fused-matrix-library/">
+	<meta name="og:site_name" content="Introducing fml - the Fused Matrix Library">
+	<meta name="og:type" content="article">
+	
+	<meta name="article:author" content="wrathematics">
+	<meta name="article:tag" content="">
+	<link rel="stylesheet" type="text/css" href="/blog/css/style3.css">
+	<script src="/blog/js/caption.js"></script>
+</head>
+<body>
+
+<header >
+	<a href="/blog" style="float: left;color:#777;"><strong>fml blog</strong>
+	</a>
+	<a href="/blog/index.xml" style="color:#777;float: left;"><strong>
+		&nbsp;
+	<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather feather-rss"><path d="M4 11a9 9 0 0 1 9 9"></path><path d="M4 4a16 16 0 0 1 16 16"></path><circle cx="5" cy="19" r="1"></circle></svg>
+</strong></a>
+<a href="https://fml-fam.github.io/blog/page/about/" style="color:#777;"><strong>About</strong></a>
+
+</header>
+
+
+<script>
+function fadeOut(el) {
+  el.style.opacity = 1;
+
+  var last = +new Date();
+  var tick = function() {
+    el.style.opacity = +el.style.opacity - (new Date() - last) / 80;
+    last = +new Date();
+    
+
+    if (el.style.opacity > 0) {
+      (window.requestAnimationFrame && requestAnimationFrame(tick)) || setTimeout(tick, 16);
+    } else {
+    	el.style.display='none';
+    }
+  };
+
+  tick();
+}
+
+function ready(fn) {
+    if (document.attachEvent ? document.readyState === "complete" : document.readyState !== "loading") {
+        var elements = document.querySelectorAll("img");
+        Array.prototype.forEach.call(elements, function(el, i) {
+            if (el.getAttribute("alt")) {
+                const caption = document.createElement('figcaption');
+                var node = document.createTextNode(el.getAttribute("alt"));
+                caption.appendChild(node);
+                const wrapper = document.createElement('figure');
+                wrapper.className = 'image';
+                el.parentNode.insertBefore(wrapper, el);
+                el.parentNode.removeChild(el);
+                wrapper.appendChild(el);
+                wrapper.appendChild(caption);
+            }
+        });
+
+    } else {
+        document.addEventListener('DOMContentLoaded', fn);
+    }
+}
+window.onload = ready;
+</script>
+
+<div class="content">
+	<h1>Introducing fml - the Fused Matrix Library <aside></aside></h1>
+  
+  	<p><small><em>Written Sun, June 21, 2020. </em>
+  	</small></p>
+  
+  
+  <h2 id="what-is-fml">What is fml?</h2>
+<p><a href="https://github.com/fml-fam/fml">fml</a> is the Fused Matrix Library, a <a href="https://opensource.org/licenses/BSL-1.0">permissively licensed</a>, header-only C++ library for dense matrix computing. The emphasis is on real-valued matrix types (<code>float</code>, <code>double</code>, and <code>__half</code>) for numerical operations useful for data analysis.</p>
+<p>The library provides 3 main classes: <code>cpumat</code>, <code>gpumat</code>, and <code>mpimat</code>. There is currently an experimental <code>parmat</code> class, but it is at present not well developed. For the main classes:</p>
+<ul>
+<li>CPU: Single node cpu computing (multi-threaded if using multi-threaded BLAS and linking with OpenMP).</li>
+<li>GPU: Single gpu computing.</li>
+<li>MPI: Multi-node computing via ScaLAPACK (+gpus if using <a href="http://icl.utk.edu/slate/">SLATE</a>).</li>
+</ul>
+<p>There are some differences in how objects of any particular type are constructed. But the high level APIs are largely the same between the objects. The goal is to be able to quickly create laptop-scale prototypes that are then easily converted into large scale gpu/multi-node/multi-gpu/multi-node+multi-gpu codes.</p>
+<h3 id="example">Example</h3>
+<p>Here&rsquo;s a quick example computing the singular values of a simple CPU matrix:</p>
+<div class="highlight"><pre style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-c++" data-lang="c++"><span style="color:#75715e">#include</span> <span style="color:#75715e">&lt;fml/cpu.hh&gt;</span><span style="color:#75715e">
+</span><span style="color:#75715e"></span>
+<span style="color:#66d9ef">int</span> <span style="color:#a6e22e">main</span>()
+{
+  fml<span style="color:#f92672">::</span>cpumat<span style="color:#f92672">&lt;</span><span style="color:#66d9ef">float</span><span style="color:#f92672">&gt;</span> x(<span style="color:#ae81ff">3</span>, <span style="color:#ae81ff">2</span>);
+  x.fill_linspace(<span style="color:#ae81ff">1</span>, <span style="color:#ae81ff">6</span>);
+  
+  x.info();
+  x.print(<span style="color:#ae81ff">0</span>);
+  
+  fml<span style="color:#f92672">::</span>cpuvec<span style="color:#f92672">&lt;</span><span style="color:#66d9ef">float</span><span style="color:#f92672">&gt;</span> s;
+  fml<span style="color:#f92672">::</span>linalg<span style="color:#f92672">::</span>svd(x, s);
+  
+  s.info();
+  s.print();
+  
+  <span style="color:#66d9ef">return</span> <span style="color:#ae81ff">0</span>;
+}
+</code></pre></div><p>If we save this in <code>svd.cpp</code>, we can compile it with something like:</p>
+<pre><code>g++ -I/path/to/fml/src -fopenmp svd.cpp -o svd -llapack -lblas
+</code></pre><p>And then running it, we see:</p>
+<pre><code># cpumat 3x2 type=f
+1 4 
+2 5 
+3 6 
+
+# cpuvec 2 type=f
+9.5080 0.7729 
+</code></pre><p>With only minor modifications, we can do this same operation on a GPU:</p>
+<div class="highlight"><pre style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-c++" data-lang="c++"><span style="color:#75715e">#include</span> <span style="color:#75715e">&lt;fml/gpu.hh&gt;</span><span style="color:#75715e">
+</span><span style="color:#75715e"></span>
+<span style="color:#66d9ef">int</span> <span style="color:#a6e22e">main</span>()
+{
+  <span style="color:#66d9ef">auto</span> c <span style="color:#f92672">=</span> fml<span style="color:#f92672">::</span>new_card(<span style="color:#ae81ff">0</span>);
+  c.info();
+  
+  fml<span style="color:#f92672">::</span>gpumat<span style="color:#f92672">&lt;</span><span style="color:#66d9ef">float</span><span style="color:#f92672">&gt;</span> x(c, <span style="color:#ae81ff">3</span>, <span style="color:#ae81ff">2</span>);
+  x.fill_linspace(<span style="color:#ae81ff">1</span>, <span style="color:#ae81ff">6</span>);
+  
+  x.info();
+  x.print(<span style="color:#ae81ff">0</span>);
+  
+  fml<span style="color:#f92672">::</span>gpuvec<span style="color:#f92672">&lt;</span><span style="color:#66d9ef">float</span><span style="color:#f92672">&gt;</span> s(c);
+  fml<span style="color:#f92672">::</span>linalg<span style="color:#f92672">::</span>svd(x, s);
+  
+  s.info();
+  s.print();
+  
+  <span style="color:#66d9ef">return</span> <span style="color:#ae81ff">0</span>;
+}
+</code></pre></div><p>If we save this in <code>svd.cu</code>, we can compile it with something like:</p>
+<pre><code>nvcc -arch=sm_61 -Xcompiler &quot;-I/path/to/fml/src&quot; svd.cu -o svd -lcudart -lcublas -lcusolver -lcurand -lnvidia-ml
+</code></pre><p>And then running it, we see:</p>
+<pre><code>## GPU 0 (GeForce GTX 1070 Ti) 860/8116 MB - CUDA 10.2
+
+# gpumat 3x2 type=f 
+1 4 
+2 5 
+3 6 
+
+# gpuvec 2 type=f 
+9.5080 0.7729 
+</code></pre><h2 id="the-interface">The Interface</h2>
+<p>I think that one person&rsquo;s high-level is another person&rsquo;s low-level. With that in mind, the goal of fml is to be &ldquo;medium-level&rdquo;. It&rsquo;s high-level compared to working directly with e.g. the BLAS or cuBLAS, but low(er)-level compared to most other C++ matrix frameworks and things like R and Matlab.</p>
+<p>If you want to learn more about the interface, you can read the <a href="https://fml-fam.github.io/fml/html/index.html">doxygen documentation</a>. There are also some <a href="https://github.com/fml-fam/fml/tree/master/examples">basic examples</a>.</p>
+<p>I also maintain R bindings in the <a href="https://github.com/fml-fam/fmlr">fmlr</a> package. That may be a good place to start. I sort of think of it like an interactive REPL for fml with some minor modifications (e.g., replace <code>x.method()</code> with <code>x$method()</code>). The package is <a href="https://fml-fam.github.io/fmlr/html/index.html">well-documented</a>, and contains some long-form articles. I will have much more to say about fmlr in a later post.</p>
+<h2 id="philosophy-and-similar-projects">Philosophy and Similar Projects</h2>
+<p>There are many high quality C/C++ matrix libraries. Of course <a href="http://arma.sourceforge.net/">Armadillo</a> and <a href="http://eigen.tuxfamily.org/">Eigen</a> are worth mentioning. <a href="http://www.boost.org/">Boost</a> also has matrix bindings. <a href="https://www.gnu.org/software/gsl/">GSL</a> is a C library with numerous matrix operations. There is also <a href="https://www.mcs.anl.gov/petsc/">PETSc</a>, which can do some distributed operations, although it is mostly focused on sparse matrices.</p>
+<p>With the exception of GSL, all of these are permissively licensed. Some have at least some level of GPU support, for example Armadillo and Eigen (perhaps others).</p>
+<p>But I believe it is fair to say that none of these projects satisfies all of</p>
+<ul>
+<li>Permissively licensed.</li>
+<li>Single interface for CPU, GPU, and MPI backends (and multiple fundamental types).</li>
+<li>All functions support all backends.</li>
+<li>Only do the least amount of work necessary (e.g., QR factorization returns the compact QR and separate functions can compute Q and/or R).</li>
+</ul>
+<p>That&rsquo;s essentially the goal of fml. I believe this offers something legitimately new in what is already a crowded space of high-quality libraries.</p>
+<h2 id="state-of-the-project">State of the Project</h2>
+<p>The project is still pretty young, and at present only maintained/contributed to by one person, and only in my spare time. That said, it is currently usable and has quite a lot to offer if you operate at the level of linear algebra.</p>
+<p>What&rsquo;s there now:</p>
+<ul>
+<li>Most linear algebra you would want, including
+<ul>
+<li>Basic operations like matrix sums, products</li>
+<li>Helper operations like transpose and inversion</li>
+<li>Factorizations like SVD and QR</li>
+</ul>
+</li>
+<li><a href="https://developer.nvidia.com/cuda-zone">NVIDIA® CUDA®</a> support for GPU computing</li>
+<li>First-class <a href="https://github.com/fml-fam/fmlr">R bindings</a> developed in parallel with the core library</li>
+</ul>
+<p>What&rsquo;s coming soon:</p>
+<ul>
+<li>More statistics/data operations</li>
+<li><a href="https://www.amd.com/en/graphics/servers-solutions-rocm">AMD ROCm</a> and/or hip support for GPU computing</li>
+</ul>
+<p>What I would like to have some day:</p>
+<ul>
+<li>More statistics/data operations than you would know what to do with</li>
+<li>Support for <a href="https://icl.cs.utk.edu/magma/">MAGMA</a> for GPU matrix factorizations</li>
+<li>A more fleshed-out <code>parmat</code></li>
+<li>Python bindings</li>
+<li>At least some basic in-library I/O</li>
+</ul>
+
+</div>
+
+<br>
+<p>
+<a href="/blog/2020/06/15/svd-via-lanczos-iteration/">← SVD via Lanczos Iteration</a>&nbsp;
+
+</p>
+<br>
+
+
+<p style="color:grey;font-size:12px"><small>
+© 2020.
+Post content is <a href="http://creativecommons.org/licenses/by-sa/4.0/">CC-BY-SA</a>.
+Source code listings are <a href="http://creativecommons.org/publicdomain/zero/1.0/">CC0</a>.
+</small></p>
+
+<footer>
+  <script type="text/x-mathjax-config">
+    MathJax.Hub.Config({
+      tex2jax: {
+        inlineMath: [ ['$','$'], ["\\(","\\)"] ],
+        processEscapes: true
+      }
+    });
+  </script>
+  <script type="text/javascript" src="https://cdn.mathjax.org/mathjax/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML"></script>
+</footer>
+</body>
+</html>
+

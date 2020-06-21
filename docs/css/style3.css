@@ -1,5 +1,9 @@
 @import url('https://fonts.googleapis.com/css?family=Varela+Round');
 
+.strike{
+  text-decoration: line-through;
+}
+
 body {
     font-family: 'Varela Round',-apple-system,BlinkMacSystemFont,avenir next,avenir,helvetica neue,helvetica,ubuntu,roboto,noto,segoe ui,arial,sans-serif;
     line-height: 1.15;

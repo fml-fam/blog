@@ -7,10 +7,21 @@
     <generator>Hugo -- gohugo.io</generator>
     <language>en-us</language>
     <copyright>This work is licensed under a Creative Commons Attribution-ShareAlike 4.0 International License.</copyright>
-    <lastBuildDate>Mon, 15 Jun 2020 00:00:00 +0000</lastBuildDate>
+    <lastBuildDate>Sun, 21 Jun 2020 00:00:00 +0000</lastBuildDate>
     
 	<atom:link href="https://fml-fam.github.io/blog/index.xml" rel="self" type="application/rss+xml" />
     
+    
+    <item>
+      <title>Introducing fml - the Fused Matrix Library</title>
+      <link>https://fml-fam.github.io/blog/2020/06/21/introducing-fml-the-fused-matrix-library/</link>
+      <pubDate>Sun, 21 Jun 2020 00:00:00 +0000</pubDate>
+      
+      <guid>https://fml-fam.github.io/blog/2020/06/21/introducing-fml-the-fused-matrix-library/</guid>
+      <description>What is fml? fml is the Fused Matrix Library, a permissively licensed, header-only C++ library for dense matrix computing. The emphasis is on real-valued matrix types (float, double, and __half) for numerical operations useful for data analysis.
+The library provides 3 main classes: cpumat, gpumat, and mpimat. There is currently an experimental parmat class, but it is at present not well developed. For the main classes:
+ CPU: Single node cpu computing (multi-threaded if using multi-threaded BLAS and linking with OpenMP).</description>
+    </item>
     
     <item>
       <title>SVD via Lanczos Iteration</title>

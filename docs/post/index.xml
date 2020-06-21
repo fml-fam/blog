@@ -6,10 +6,134 @@
     <generator>Hugo -- gohugo.io</generator>
     <language>en-us</language>
     <copyright>This work is licensed under a Creative Commons Attribution-ShareAlike 4.0 International License.</copyright>
-    <lastBuildDate>Mon, 15 Jun 2020 00:00:00 +0000</lastBuildDate>
+    <lastBuildDate>Sun, 21 Jun 2020 00:00:00 +0000</lastBuildDate>
     
         <atom:link href="https://fml-fam.github.io/blog/post/index.xml" rel="self" type="application/rss+xml" />
     
+    
+    <item>
+      <title>Introducing fml - the Fused Matrix Library</title>
+      <link>https://fml-fam.github.io/blog/2020/06/21/introducing-fml-the-fused-matrix-library/</link>
+      <pubDate>Sun, 21 Jun 2020 00:00:00 +0000</pubDate>
+      
+      <guid>https://fml-fam.github.io/blog/2020/06/21/introducing-fml-the-fused-matrix-library/</guid>
+      <description>&lt;h2 id=&#34;what-is-fml&#34;&gt;What is fml?&lt;/h2&gt;
+&lt;p&gt;&lt;a href=&#34;https://github.com/fml-fam/fml&#34;&gt;fml&lt;/a&gt; is the Fused Matrix Library, a &lt;a href=&#34;https://opensource.org/licenses/BSL-1.0&#34;&gt;permissively licensed&lt;/a&gt;, header-only C++ library for dense matrix computing. The emphasis is on real-valued matrix types (&lt;code&gt;float&lt;/code&gt;, &lt;code&gt;double&lt;/code&gt;, and &lt;code&gt;__half&lt;/code&gt;) for numerical operations useful for data analysis.&lt;/p&gt;
+&lt;p&gt;The library provides 3 main classes: &lt;code&gt;cpumat&lt;/code&gt;, &lt;code&gt;gpumat&lt;/code&gt;, and &lt;code&gt;mpimat&lt;/code&gt;. There is currently an experimental &lt;code&gt;parmat&lt;/code&gt; class, but it is at present not well developed. For the main classes:&lt;/p&gt;
+&lt;ul&gt;
+&lt;li&gt;CPU: Single node cpu computing (multi-threaded if using multi-threaded BLAS and linking with OpenMP).&lt;/li&gt;
+&lt;li&gt;GPU: Single gpu computing.&lt;/li&gt;
+&lt;li&gt;MPI: Multi-node computing via ScaLAPACK (+gpus if using &lt;a href=&#34;http://icl.utk.edu/slate/&#34;&gt;SLATE&lt;/a&gt;).&lt;/li&gt;
+&lt;/ul&gt;
+&lt;p&gt;There are some differences in how objects of any particular type are constructed. But the high level APIs are largely the same between the objects. The goal is to be able to quickly create laptop-scale prototypes that are then easily converted into large scale gpu/multi-node/multi-gpu/multi-node+multi-gpu codes.&lt;/p&gt;
+&lt;h3 id=&#34;example&#34;&gt;Example&lt;/h3&gt;
+&lt;p&gt;Here&amp;rsquo;s a quick example computing the singular values of a simple CPU matrix:&lt;/p&gt;
+&lt;div class=&#34;highlight&#34;&gt;&lt;pre style=&#34;color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4&#34;&gt;&lt;code class=&#34;language-c++&#34; data-lang=&#34;c++&#34;&gt;&lt;span style=&#34;color:#75715e&#34;&gt;#include&lt;/span&gt; &lt;span style=&#34;color:#75715e&#34;&gt;&amp;lt;fml/cpu.hh&amp;gt;&lt;/span&gt;&lt;span style=&#34;color:#75715e&#34;&gt;
+&lt;/span&gt;&lt;span style=&#34;color:#75715e&#34;&gt;&lt;/span&gt;
+&lt;span style=&#34;color:#66d9ef&#34;&gt;int&lt;/span&gt; &lt;span style=&#34;color:#a6e22e&#34;&gt;main&lt;/span&gt;()
+{
+  fml&lt;span style=&#34;color:#f92672&#34;&gt;::&lt;/span&gt;cpumat&lt;span style=&#34;color:#f92672&#34;&gt;&amp;lt;&lt;/span&gt;&lt;span style=&#34;color:#66d9ef&#34;&gt;float&lt;/span&gt;&lt;span style=&#34;color:#f92672&#34;&gt;&amp;gt;&lt;/span&gt; x(&lt;span style=&#34;color:#ae81ff&#34;&gt;3&lt;/span&gt;, &lt;span style=&#34;color:#ae81ff&#34;&gt;2&lt;/span&gt;);
+  x.fill_linspace(&lt;span style=&#34;color:#ae81ff&#34;&gt;1&lt;/span&gt;, &lt;span style=&#34;color:#ae81ff&#34;&gt;6&lt;/span&gt;);
+  
+  x.info();
+  x.print(&lt;span style=&#34;color:#ae81ff&#34;&gt;0&lt;/span&gt;);
+  
+  fml&lt;span style=&#34;color:#f92672&#34;&gt;::&lt;/span&gt;cpuvec&lt;span style=&#34;color:#f92672&#34;&gt;&amp;lt;&lt;/span&gt;&lt;span style=&#34;color:#66d9ef&#34;&gt;float&lt;/span&gt;&lt;span style=&#34;color:#f92672&#34;&gt;&amp;gt;&lt;/span&gt; s;
+  fml&lt;span style=&#34;color:#f92672&#34;&gt;::&lt;/span&gt;linalg&lt;span style=&#34;color:#f92672&#34;&gt;::&lt;/span&gt;svd(x, s);
+  
+  s.info();
+  s.print();
+  
+  &lt;span style=&#34;color:#66d9ef&#34;&gt;return&lt;/span&gt; &lt;span style=&#34;color:#ae81ff&#34;&gt;0&lt;/span&gt;;
+}
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;p&gt;If we save this in &lt;code&gt;svd.cpp&lt;/code&gt;, we can compile it with something like:&lt;/p&gt;
+&lt;pre&gt;&lt;code&gt;g++ -I/path/to/fml/src -fopenmp svd.cpp -o svd -llapack -lblas
+&lt;/code&gt;&lt;/pre&gt;&lt;p&gt;And then running it, we see:&lt;/p&gt;
+&lt;pre&gt;&lt;code&gt;# cpumat 3x2 type=f
+1 4 
+2 5 
+3 6 
+
+# cpuvec 2 type=f
+9.5080 0.7729 
+&lt;/code&gt;&lt;/pre&gt;&lt;p&gt;With only minor modifications, we can do this same operation on a GPU:&lt;/p&gt;
+&lt;div class=&#34;highlight&#34;&gt;&lt;pre style=&#34;color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4&#34;&gt;&lt;code class=&#34;language-c++&#34; data-lang=&#34;c++&#34;&gt;&lt;span style=&#34;color:#75715e&#34;&gt;#include&lt;/span&gt; &lt;span style=&#34;color:#75715e&#34;&gt;&amp;lt;fml/gpu.hh&amp;gt;&lt;/span&gt;&lt;span style=&#34;color:#75715e&#34;&gt;
+&lt;/span&gt;&lt;span style=&#34;color:#75715e&#34;&gt;&lt;/span&gt;
+&lt;span style=&#34;color:#66d9ef&#34;&gt;int&lt;/span&gt; &lt;span style=&#34;color:#a6e22e&#34;&gt;main&lt;/span&gt;()
+{
+  &lt;span style=&#34;color:#66d9ef&#34;&gt;auto&lt;/span&gt; c &lt;span style=&#34;color:#f92672&#34;&gt;=&lt;/span&gt; fml&lt;span style=&#34;color:#f92672&#34;&gt;::&lt;/span&gt;new_card(&lt;span style=&#34;color:#ae81ff&#34;&gt;0&lt;/span&gt;);
+  c.info();
+  
+  fml&lt;span style=&#34;color:#f92672&#34;&gt;::&lt;/span&gt;gpumat&lt;span style=&#34;color:#f92672&#34;&gt;&amp;lt;&lt;/span&gt;&lt;span style=&#34;color:#66d9ef&#34;&gt;float&lt;/span&gt;&lt;span style=&#34;color:#f92672&#34;&gt;&amp;gt;&lt;/span&gt; x(c, &lt;span style=&#34;color:#ae81ff&#34;&gt;3&lt;/span&gt;, &lt;span style=&#34;color:#ae81ff&#34;&gt;2&lt;/span&gt;);
+  x.fill_linspace(&lt;span style=&#34;color:#ae81ff&#34;&gt;1&lt;/span&gt;, &lt;span style=&#34;color:#ae81ff&#34;&gt;6&lt;/span&gt;);
+  
+  x.info();
+  x.print(&lt;span style=&#34;color:#ae81ff&#34;&gt;0&lt;/span&gt;);
+  
+  fml&lt;span style=&#34;color:#f92672&#34;&gt;::&lt;/span&gt;gpuvec&lt;span style=&#34;color:#f92672&#34;&gt;&amp;lt;&lt;/span&gt;&lt;span style=&#34;color:#66d9ef&#34;&gt;float&lt;/span&gt;&lt;span style=&#34;color:#f92672&#34;&gt;&amp;gt;&lt;/span&gt; s(c);
+  fml&lt;span style=&#34;color:#f92672&#34;&gt;::&lt;/span&gt;linalg&lt;span style=&#34;color:#f92672&#34;&gt;::&lt;/span&gt;svd(x, s);
+  
+  s.info();
+  s.print();
+  
+  &lt;span style=&#34;color:#66d9ef&#34;&gt;return&lt;/span&gt; &lt;span style=&#34;color:#ae81ff&#34;&gt;0&lt;/span&gt;;
+}
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;p&gt;If we save this in &lt;code&gt;svd.cu&lt;/code&gt;, we can compile it with something like:&lt;/p&gt;
+&lt;pre&gt;&lt;code&gt;nvcc -arch=sm_61 -Xcompiler &amp;quot;-I/path/to/fml/src&amp;quot; svd.cu -o svd -lcudart -lcublas -lcusolver -lcurand -lnvidia-ml
+&lt;/code&gt;&lt;/pre&gt;&lt;p&gt;And then running it, we see:&lt;/p&gt;
+&lt;pre&gt;&lt;code&gt;## GPU 0 (GeForce GTX 1070 Ti) 860/8116 MB - CUDA 10.2
+
+# gpumat 3x2 type=f 
+1 4 
+2 5 
+3 6 
+
+# gpuvec 2 type=f 
+9.5080 0.7729 
+&lt;/code&gt;&lt;/pre&gt;&lt;h2 id=&#34;the-interface&#34;&gt;The Interface&lt;/h2&gt;
+&lt;p&gt;I think that one person&amp;rsquo;s high-level is another person&amp;rsquo;s low-level. With that in mind, the goal of fml is to be &amp;ldquo;medium-level&amp;rdquo;. It&amp;rsquo;s high-level compared to working directly with e.g. the BLAS or cuBLAS, but low(er)-level compared to most other C++ matrix frameworks and things like R and Matlab.&lt;/p&gt;
+&lt;p&gt;If you want to learn more about the interface, you can read the &lt;a href=&#34;https://fml-fam.github.io/fml/html/index.html&#34;&gt;doxygen documentation&lt;/a&gt;. There are also some &lt;a href=&#34;https://github.com/fml-fam/fml/tree/master/examples&#34;&gt;basic examples&lt;/a&gt;.&lt;/p&gt;
+&lt;p&gt;I also maintain R bindings in the &lt;a href=&#34;https://github.com/fml-fam/fmlr&#34;&gt;fmlr&lt;/a&gt; package. That may be a good place to start. I sort of think of it like an interactive REPL for fml with some minor modifications (e.g., replace &lt;code&gt;x.method()&lt;/code&gt; with &lt;code&gt;x$method()&lt;/code&gt;). The package is &lt;a href=&#34;https://fml-fam.github.io/fmlr/html/index.html&#34;&gt;well-documented&lt;/a&gt;, and contains some long-form articles. I will have much more to say about fmlr in a later post.&lt;/p&gt;
+&lt;h2 id=&#34;philosophy-and-similar-projects&#34;&gt;Philosophy and Similar Projects&lt;/h2&gt;
+&lt;p&gt;There are many high quality C/C++ matrix libraries. Of course &lt;a href=&#34;http://arma.sourceforge.net/&#34;&gt;Armadillo&lt;/a&gt; and &lt;a href=&#34;http://eigen.tuxfamily.org/&#34;&gt;Eigen&lt;/a&gt; are worth mentioning. &lt;a href=&#34;http://www.boost.org/&#34;&gt;Boost&lt;/a&gt; also has matrix bindings. &lt;a href=&#34;https://www.gnu.org/software/gsl/&#34;&gt;GSL&lt;/a&gt; is a C library with numerous matrix operations. There is also &lt;a href=&#34;https://www.mcs.anl.gov/petsc/&#34;&gt;PETSc&lt;/a&gt;, which can do some distributed operations, although it is mostly focused on sparse matrices.&lt;/p&gt;
+&lt;p&gt;With the exception of GSL, all of these are permissively licensed. Some have at least some level of GPU support, for example Armadillo and Eigen (perhaps others).&lt;/p&gt;
+&lt;p&gt;But I believe it is fair to say that none of these projects satisfies all of&lt;/p&gt;
+&lt;ul&gt;
+&lt;li&gt;Permissively licensed.&lt;/li&gt;
+&lt;li&gt;Single interface for CPU, GPU, and MPI backends (and multiple fundamental types).&lt;/li&gt;
+&lt;li&gt;All functions support all backends.&lt;/li&gt;
+&lt;li&gt;Only do the least amount of work necessary (e.g., QR factorization returns the compact QR and separate functions can compute Q and/or R).&lt;/li&gt;
+&lt;/ul&gt;
+&lt;p&gt;That&amp;rsquo;s essentially the goal of fml. I believe this offers something legitimately new in what is already a crowded space of high-quality libraries.&lt;/p&gt;
+&lt;h2 id=&#34;state-of-the-project&#34;&gt;State of the Project&lt;/h2&gt;
+&lt;p&gt;The project is still pretty young, and at present only maintained/contributed to by one person, and only in my spare time. That said, it is currently usable and has quite a lot to offer if you operate at the level of linear algebra.&lt;/p&gt;
+&lt;p&gt;What&amp;rsquo;s there now:&lt;/p&gt;
+&lt;ul&gt;
+&lt;li&gt;Most linear algebra you would want, including
+&lt;ul&gt;
+&lt;li&gt;Basic operations like matrix sums, products&lt;/li&gt;
+&lt;li&gt;Helper operations like transpose and inversion&lt;/li&gt;
+&lt;li&gt;Factorizations like SVD and QR&lt;/li&gt;
+&lt;/ul&gt;
+&lt;/li&gt;
+&lt;li&gt;&lt;a href=&#34;https://developer.nvidia.com/cuda-zone&#34;&gt;NVIDIA® CUDA®&lt;/a&gt; support for GPU computing&lt;/li&gt;
+&lt;li&gt;First-class &lt;a href=&#34;https://github.com/fml-fam/fmlr&#34;&gt;R bindings&lt;/a&gt; developed in parallel with the core library&lt;/li&gt;
+&lt;/ul&gt;
+&lt;p&gt;What&amp;rsquo;s coming soon:&lt;/p&gt;
+&lt;ul&gt;
+&lt;li&gt;More statistics/data operations&lt;/li&gt;
+&lt;li&gt;&lt;a href=&#34;https://www.amd.com/en/graphics/servers-solutions-rocm&#34;&gt;AMD ROCm&lt;/a&gt; and/or hip support for GPU computing&lt;/li&gt;
+&lt;/ul&gt;
+&lt;p&gt;What I would like to have some day:&lt;/p&gt;
+&lt;ul&gt;
+&lt;li&gt;More statistics/data operations than you would know what to do with&lt;/li&gt;
+&lt;li&gt;Support for &lt;a href=&#34;https://icl.cs.utk.edu/magma/&#34;&gt;MAGMA&lt;/a&gt; for GPU matrix factorizations&lt;/li&gt;
+&lt;li&gt;A more fleshed-out &lt;code&gt;parmat&lt;/code&gt;&lt;/li&gt;
+&lt;li&gt;Python bindings&lt;/li&gt;
+&lt;li&gt;At least some basic in-library I/O&lt;/li&gt;
+&lt;/ul&gt;
+</description>
+    </item>
     
     <item>
       <title>SVD via Lanczos Iteration</title>
