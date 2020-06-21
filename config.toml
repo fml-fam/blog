@@ -16,3 +16,6 @@ baseurl = "https://fml-fam.github.io/blog/"
 
 [permalinks]
     post = "/:year/:month/:day/:slug/"
+
+[markup.goldmark.renderer]
+    unsafe = true
