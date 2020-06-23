@@ -1,0 +1,236 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+	<meta charset="utf-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1">
+	
+	<title>Vignette-less Articles With pkgdown</title>
+	
+	<meta name="description" content="">
+	<meta name="image" content="">
+	
+	<meta itemprop="name" content="Vignette-less Articles With pkgdown">
+	<meta itemprop="description" content="">
+	<meta itemprop="image" content="">
+	
+	<meta name="og:title" content="Vignette-less Articles With pkgdown">
+	<meta name="og:description" content="">
+	
+	<meta name="og:url" content="https://fml-fam.github.io/blog/2020/06/23/vignette-less-articles-with-pkgdown/">
+	<meta name="og:site_name" content="Vignette-less Articles With pkgdown">
+	<meta name="og:type" content="article">
+	
+	<meta name="article:author" content="wrathematics">
+	<meta name="article:tag" content="r ">
+	<link rel="stylesheet" type="text/css" href="/blog/css/style3.css">
+	<script src="/blog/js/caption.js"></script>
+</head>
+<body>
+
+<header >
+	<a href="/blog" style="float: left;color:#777;"><strong>fml blog</strong>
+	</a>
+	<a href="/blog/index.xml" style="color:#777;float: left;"><strong>
+		&nbsp;
+	<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather feather-rss"><path d="M4 11a9 9 0 0 1 9 9"></path><path d="M4 4a16 16 0 0 1 16 16"></path><circle cx="5" cy="19" r="1"></circle></svg>
+</strong></a>
+<a href="https://fml-fam.github.io/blog/page/about/" style="color:#777;"><strong>About</strong></a>
+
+</header>
+
+
+<script>
+function fadeOut(el) {
+  el.style.opacity = 1;
+
+  var last = +new Date();
+  var tick = function() {
+    el.style.opacity = +el.style.opacity - (new Date() - last) / 80;
+    last = +new Date();
+    
+
+    if (el.style.opacity > 0) {
+      (window.requestAnimationFrame && requestAnimationFrame(tick)) || setTimeout(tick, 16);
+    } else {
+    	el.style.display='none';
+    }
+  };
+
+  tick();
+}
+
+function ready(fn) {
+    if (document.attachEvent ? document.readyState === "complete" : document.readyState !== "loading") {
+        var elements = document.querySelectorAll("img");
+        Array.prototype.forEach.call(elements, function(el, i) {
+            if (el.getAttribute("alt")) {
+                const caption = document.createElement('figcaption');
+                var node = document.createTextNode(el.getAttribute("alt"));
+                caption.appendChild(node);
+                const wrapper = document.createElement('figure');
+                wrapper.className = 'image';
+                el.parentNode.insertBefore(wrapper, el);
+                el.parentNode.removeChild(el);
+                wrapper.appendChild(el);
+                wrapper.appendChild(caption);
+            }
+        });
+
+    } else {
+        document.addEventListener('DOMContentLoaded', fn);
+    }
+}
+window.onload = ready;
+</script>
+
+<div class="content">
+	<h1>Vignette-less Articles With pkgdown <aside><a href="/blog/tags/r/" class="w3-tag">/r</a>&nbsp;&nbsp;&nbsp;</aside></h1>
+  
+  	<p><small><em>Written Tue, June 23, 2020. </em>
+  	</small></p>
+  
+  
+  <h2 id="long-boring-background-you-can-skip">Long Boring Background You Can Skip</h2>
+<p>I don&rsquo;t like the R vignette system. At its core, it&rsquo;s a good idea. Having long-form package documentation is a good thing, and having the ability to put in source code listing that get automatically executed during rebuilds is great. But the way it works in practice is, to me, extremely annoying. Whenever you build/test your package, the vignettes will automatically be rebuilt, even if that&rsquo;s not what you want. The underlying assumptions here are that:</p>
+<ul>
+<li>rebuilding vignettes is cheap</li>
+<li>vignette code can run on the machine that is building/checking the package</li>
+</ul>
+<p>Both of these assumptions regularly fail for me, and likely anyone else who writes HPC packages for R. Imagine you&rsquo;re benchmarking something that takes tens of minutes or more. You probably don&rsquo;t want to re-run those very often. You might only even want to run them on a completely different system, say one with more RAM or CPU cores, or even one with a fancy GPU that your dev box doesn&rsquo;t have.</p>
+<p>I also don&rsquo;t like that if you want to have html documents, you need to list a very fairly package, <a href="https://cran.r-project.org/web/packages/knitr/index.html">knitr</a>, in your package DESCRIPTION&rsquo;s Suggests field. On Linux (the only platform I run on), this is doubly annoying because everything has to be built from source. You can of course install a package without suggested packages by modifying the <code>dependencies</code> argument of <code>install.packages()</code>. But even as annoyed as I get by a giant wall of suggested packages needlessly cluttering my R library, I usually don&rsquo;t bother because by the time I realize the problem, it&rsquo;s already downloading and installing them.</p>
+<p>But html or pdf, if you want to re-build your vignettes infrequently (having qasi-static vignettes), there are a few workarounds I&rsquo;m aware of. One obvious way is to simply not have automatically executed code in your vignettes. I have done this in many packages, and if I&rsquo;m being honest, there is probably some dead/non-executing code lying around in those vignettes somewhere. If you restrict yourself to pdf outputs, you can also make a &ldquo;shell&rdquo; vignette that &ldquo;includes&rdquo; your static vignette. But I find in practice that this can be cumbersome, and even then, you&rsquo;re stuck with a pdf.</p>
+<h2 id="using-pkgdown">Using pkgdown</h2>
+<p>I&rsquo;ve recently started using the <a href="https://pkgdown.r-lib.org/">pkgdown package</a> to generate html files for the manpage-style help that R packages have. But it can also handle vignettes in its &ldquo;article&rdquo; system. This gives you the ability to have vignettes without even having to bother with R&rsquo;s vignette system.</p>
+<p>Although the setup is a bit tedious, I find this approach fairly inoffensive, and the results make me very happy. It goes something like this:</p>
+<ol>
+<li>Add the line <code>vignettes/</code> to your package <code>.Rbuildignore</code> file.</li>
+<li>Set up your vignettes.
+<ul>
+<li>Put the source Rmd files in, say, <code>vignettes/src/</code>.</li>
+<li>Manually build them using <code>rmarkdown::render()</code> with outputs in <code>vignettes/</code>, and with output format <code>md_document()</code> and file extension <code>.Rmd</code>.</li>
+</ul>
+</li>
+<li>Build the pkgdown &ldquo;articles&rdquo; (vignettes).</li>
+</ol>
+<p>This gives you complete control over when your documents are rebuilt. I use exactly this workflow in the <a href="https://github.com/fml-fam/fmlr">fmlr package</a>. You can see the generated documentation <a href="https://fml-fam.github.io/fmlr/html/index.html">here</a>.</p>
+<p>I will have more to say about fmlr in a later post. For now, I&rsquo;ll walk through these pkgdown vignette steps in more depth.</p>
+<h2 id="1-ignoring-the-vignettes">1. Ignoring the Vignettes</h2>
+<p>The whole point of this is to not use R&rsquo;s vignette system. So you need to make sure your <code>.Rbuildignore</code> file contains a line like:</p>
+<pre><code>vignettes/
+</code></pre><p>so that when you <code>R CMD build</code> your package, it won&rsquo;t include any of the vignettes. Your articles still have to go in the <code>vignettes/</code> folder, because that&rsquo;s where pkgdown will look for them, and I have no idea how to override this if you wanted to put them somewhere else.</p>
+<p>The generated vignette files (output of <code>rmarkdown::render()</code>) will go in <code>vignettes/</code>. The raw/source vignettes that contain yet-to-be-executed source code listings should go somewhere else. I use <code>vignettes/src/</code>.</p>
+<h2 id="2-setting-up-your-vignette-builder">2. Setting Up Your Vignette Builder</h2>
+<p>You need some kind of script that will call <code>rmarkdown::render()</code> on your source Rmd files. It can be a simple Makefile or a more complicated R script. The format to pass to <code>rmarkdown::render()</code> should look something like this:</p>
+<div class="highlight"><pre style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-r" data-lang="r">fmt <span style="color:#f92672">=</span> rmarkdown<span style="color:#f92672">::</span><span style="color:#a6e22e">md_document</span>(
+  variant<span style="color:#f92672">=</span><span style="color:#e6db74">&#34;gfm&#34;</span>,
+  preserve_yaml<span style="color:#f92672">=</span><span style="color:#66d9ef">TRUE</span>,
+  ext<span style="color:#f92672">=</span><span style="color:#e6db74">&#34;.Rmd&#34;</span>
+)
+</code></pre></div><p>The goal here is to have an Rmd output that has executed the source code listings of your input file. These generated Rmd files are pretending to be the source vignettes for pkgdown.</p>
+<p>Here&rsquo;s the builder script that I use:</p>
+<div class="highlight"><pre style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-r" data-lang="r"><span style="color:#75715e">#!/usr/bin/env Rscript</span>
+<span style="color:#a6e22e">library</span>(rmarkdown)
+
+rmf <span style="color:#f92672">=</span> <span style="color:#a6e22e">function</span>(f)
+{
+  <span style="color:#a6e22e">if </span>(<span style="color:#a6e22e">file.exists</span>(f))
+    <span style="color:#a6e22e">file.remove</span>(f)
+}
+
+clean <span style="color:#f92672">=</span> <span style="color:#a6e22e">function</span>()
+{
+  files <span style="color:#f92672">=</span> <span style="color:#a6e22e">dir</span>(pattern<span style="color:#f92672">=</span><span style="color:#e6db74">&#34;*.Rmd&#34;</span>, recursive<span style="color:#f92672">=</span><span style="color:#66d9ef">FALSE</span>)
+  <span style="color:#a6e22e">for </span>(f in files)
+    <span style="color:#a6e22e">rmf</span>(f)
+}
+
+set_path <span style="color:#f92672">=</span> <span style="color:#a6e22e">function</span>()
+{
+  <span style="color:#a6e22e">while </span>(<span style="color:#f92672">!</span><span style="color:#a6e22e">file.exists</span>(<span style="color:#e6db74">&#34;DESCRIPTION&#34;</span>))
+  {
+    <span style="color:#a6e22e">setwd</span>(<span style="color:#e6db74">&#34;..&#34;</span>)
+    <span style="color:#a6e22e">if </span>(<span style="color:#a6e22e">getwd</span>() <span style="color:#f92672">==</span> <span style="color:#e6db74">&#34;/home&#34;</span>)
+      <span style="color:#a6e22e">stop</span>(<span style="color:#e6db74">&#34;couldn&#39;t find package!&#34;</span>)
+  }
+  
+  <span style="color:#a6e22e">setwd</span>(<span style="color:#e6db74">&#34;vignettes&#34;</span>)
+}
+
+build_vignette <span style="color:#f92672">=</span> <span style="color:#a6e22e">function</span>(f)
+{
+  f_Rmd <span style="color:#f92672">=</span> <span style="color:#a6e22e">basename</span>(f)
+  of <span style="color:#f92672">=</span> <span style="color:#a6e22e">sub</span>(f_Rmd, pattern<span style="color:#f92672">=</span><span style="color:#e6db74">&#34;^_&#34;</span>, replacement<span style="color:#f92672">=</span><span style="color:#e6db74">&#34;&#34;</span>)
+  <span style="color:#a6e22e">rmf</span>(of)
+  
+  fmt <span style="color:#f92672">=</span> rmarkdown<span style="color:#f92672">::</span><span style="color:#a6e22e">md_document</span>(
+    variant<span style="color:#f92672">=</span><span style="color:#e6db74">&#34;gfm&#34;</span>,
+    preserve_yaml<span style="color:#f92672">=</span><span style="color:#66d9ef">TRUE</span>,
+    ext<span style="color:#f92672">=</span><span style="color:#e6db74">&#34;.Rmd&#34;</span>
+  )
+  
+  rmarkdown<span style="color:#f92672">::</span><span style="color:#a6e22e">render</span>(
+    f,
+    output_file<span style="color:#f92672">=</span>of,
+    output_dir<span style="color:#f92672">=</span><span style="color:#a6e22e">getwd</span>(),
+    output_format<span style="color:#f92672">=</span>fmt
+  )
+  
+  <span style="color:#a6e22e">invisible</span>(<span style="color:#66d9ef">TRUE</span>)
+}
+
+
+
+<span style="color:#75715e"># -----------------------------------------------------------------------</span>
+<span style="color:#a6e22e">set_path</span>()
+
+<span style="color:#a6e22e">clean</span>()
+<span style="color:#a6e22e">build_vignette</span>(<span style="color:#e6db74">&#34;./src/_source_vignette_1.Rmd&#34;</span>)
+<span style="color:#a6e22e">build_vignette</span>(<span style="color:#e6db74">&#34;./src/_source_vignette_2.Rmd&#34;</span>)
+</code></pre></div><p>I preface my raw source files with an underscore so that they&rsquo;re immediately visually distinct to me in my editor. If you want to do something else, you may need to slightly modify the logic a bit. Also, because I may not want to rebuild every vignette every time, I just comment out <code>clean()</code> or <code>build_vignette()</code> calls as necessary for whatever I&rsquo;m doing. You could easily come up with something more sophisticated, but this works fine for me.</p>
+<h2 id="3-building-the-pkgdown-articles">3. Building the pkgdown Articles</h2>
+<p>Here&rsquo;s a sample Makefile for pkgdown. I like to build my documentation in <code>docs/html/</code>, so I put the Makefile in <code>docs/</code>. I also like to serve the documentation on GitHub pages (there&rsquo;s an automatic <code>docs/</code> option in the repo settings), so I have an <code>index.html</code> re-directer in <code>docs/</code> as well. Set your override arguments appropriately if you do something different.</p>
+<pre><code>all: docs
+
+docs:
+	( Rscript -e &quot;pkgdown::build_site('..', override=list(destination='docs/html'), install=FALSE)&quot; )
+
+articles: vignettes
+	( Rscript -e &quot;pkgdown::build_articles('..', override=list(destination='docs/html'))&quot; )
+
+vignettes:
+	( cd ../vignettes &amp;&amp; Rscript ./rebuild.r )
+
+clean:
+	rm -rf html
+</code></pre><p>Now all you have to do is (re-)build your vignettes with <code>make vignettes</code>, and <code>make docs</code> to re-generate the pkgdown html files. If you are making a lot of changes to the vignettes and only want to generate those (skipping the manpage documentation, which can take a while to generate), you can just do <code>make articles</code>.</p>
+
+</div>
+
+<br>
+<p>
+<a href="/blog/2020/06/21/introducing-fml-the-fused-matrix-library/">← Introducing fml - the Fused Matrix Library</a>&nbsp;
+
+</p>
+<br>
+
+
+<p style="color:grey;font-size:12px"><small>
+© 2020.
+Post content is <a href="http://creativecommons.org/licenses/by-sa/4.0/">CC-BY-SA</a>.
+Source code listings are <a href="http://creativecommons.org/publicdomain/zero/1.0/">CC0</a>.
+</small></p>
+
+<footer>
+  <script type="text/x-mathjax-config">
+    MathJax.Hub.Config({
+      tex2jax: {
+        inlineMath: [ ['$','$'], ["\\(","\\)"] ],
+        processEscapes: true
+      }
+    });
+  </script>
+  <script type="text/javascript" src="https://cdn.mathjax.org/mathjax/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML"></script>
+</footer>
+</body>
+</html>
+

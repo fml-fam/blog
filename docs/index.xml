@@ -7,10 +7,19 @@
     <generator>Hugo -- gohugo.io</generator>
     <language>en-us</language>
     <copyright>This work is licensed under a Creative Commons Attribution-ShareAlike 4.0 International License.</copyright>
-    <lastBuildDate>Sun, 21 Jun 2020 00:00:00 +0000</lastBuildDate>
+    <lastBuildDate>Tue, 23 Jun 2020 00:00:00 +0000</lastBuildDate>
     
 	<atom:link href="https://fml-fam.github.io/blog/index.xml" rel="self" type="application/rss+xml" />
     
+    
+    <item>
+      <title>Vignette-less Articles With pkgdown</title>
+      <link>https://fml-fam.github.io/blog/2020/06/23/vignette-less-articles-with-pkgdown/</link>
+      <pubDate>Tue, 23 Jun 2020 00:00:00 +0000</pubDate>
+      
+      <guid>https://fml-fam.github.io/blog/2020/06/23/vignette-less-articles-with-pkgdown/</guid>
+      <description>Long Boring Background You Can Skip I don&amp;rsquo;t like the R vignette system. At its core, it&amp;rsquo;s a good idea. Having long-form package documentation is a good thing, and having the ability to put in source code listing that get automatically executed during rebuilds is great. But the way it works in practice is, to me, extremely annoying. Whenever you build/test your package, the vignettes will automatically be rebuilt, even if that&amp;rsquo;s not what you want.</description>
+    </item>
     
     <item>
       <title>Introducing fml - the Fused Matrix Library</title>
