@@ -8,7 +8,7 @@ tags:
 
 ## Long Boring Background You Can Skip
 
-I don't like the R vignette system. At its core, it's a good idea. Having long-form package documentation is a good thing, and having the ability to put in source code listing that get automatically executed during rebuilds is great. But the way it works in practice is, to me, extremely annoying. Whenever you build/test your package, the vignettes will automatically be rebuilt, even if that's not what you want. The underlying assumptions here are that:
+I don't like the R vignette system. At its core, it's a good idea. Having long-form package documentation is a good thing, and having the ability to put in source code listings that get automatically executed during rebuilds is great. But the way it works in practice is, to me, extremely annoying. Whenever you build/test your package, the vignettes will automatically be rebuilt, even if that's not what you want. The underlying assumptions here are that:
 
 * rebuilding vignettes is cheap
 * vignette code can run on the machine that is building/checking the package

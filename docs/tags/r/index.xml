@@ -18,7 +18,7 @@
       <pubDate>Tue, 23 Jun 2020 00:00:00 +0000</pubDate>
       
       <guid>https://fml-fam.github.io/blog/2020/06/23/vignette-less-articles-with-pkgdown/</guid>
-      <description>Long Boring Background You Can Skip I don&amp;rsquo;t like the R vignette system. At its core, it&amp;rsquo;s a good idea. Having long-form package documentation is a good thing, and having the ability to put in source code listing that get automatically executed during rebuilds is great. But the way it works in practice is, to me, extremely annoying. Whenever you build/test your package, the vignettes will automatically be rebuilt, even if that&amp;rsquo;s not what you want.</description>
+      <description>Long Boring Background You Can Skip I don&amp;rsquo;t like the R vignette system. At its core, it&amp;rsquo;s a good idea. Having long-form package documentation is a good thing, and having the ability to put in source code listings that get automatically executed during rebuilds is great. But the way it works in practice is, to me, extremely annoying. Whenever you build/test your package, the vignettes will automatically be rebuilt, even if that&amp;rsquo;s not what you want.</description>
     </item>
     
   </channel>

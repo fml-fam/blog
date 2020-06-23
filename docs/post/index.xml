@@ -18,7 +18,7 @@
       
       <guid>https://fml-fam.github.io/blog/2020/06/23/vignette-less-articles-with-pkgdown/</guid>
       <description>&lt;h2 id=&#34;long-boring-background-you-can-skip&#34;&gt;Long Boring Background You Can Skip&lt;/h2&gt;
-&lt;p&gt;I don&amp;rsquo;t like the R vignette system. At its core, it&amp;rsquo;s a good idea. Having long-form package documentation is a good thing, and having the ability to put in source code listing that get automatically executed during rebuilds is great. But the way it works in practice is, to me, extremely annoying. Whenever you build/test your package, the vignettes will automatically be rebuilt, even if that&amp;rsquo;s not what you want. The underlying assumptions here are that:&lt;/p&gt;
+&lt;p&gt;I don&amp;rsquo;t like the R vignette system. At its core, it&amp;rsquo;s a good idea. Having long-form package documentation is a good thing, and having the ability to put in source code listings that get automatically executed during rebuilds is great. But the way it works in practice is, to me, extremely annoying. Whenever you build/test your package, the vignettes will automatically be rebuilt, even if that&amp;rsquo;s not what you want. The underlying assumptions here are that:&lt;/p&gt;
 &lt;ul&gt;
 &lt;li&gt;rebuilding vignettes is cheap&lt;/li&gt;
 &lt;li&gt;vignette code can run on the machine that is building/checking the package&lt;/li&gt;
