@@ -6,10 +6,243 @@
     <generator>Hugo -- gohugo.io</generator>
     <language>en-us</language>
     <copyright>This work is licensed under a Creative Commons Attribution-ShareAlike 4.0 International License.</copyright>
-    <lastBuildDate>Tue, 23 Jun 2020 00:00:00 +0000</lastBuildDate>
+    <lastBuildDate>Fri, 03 Jul 2020 00:00:00 +0000</lastBuildDate>
     
         <atom:link href="https://fml-fam.github.io/blog/post/index.xml" rel="self" type="application/rss+xml" />
     
+    
+    <item>
+      <title>Matrix Factorizations for Data Analysis</title>
+      <link>https://fml-fam.github.io/blog/2020/07/03/matrix-factorizations-for-data-analysis/</link>
+      <pubDate>Fri, 03 Jul 2020 00:00:00 +0000</pubDate>
+      
+      <guid>https://fml-fam.github.io/blog/2020/07/03/matrix-factorizations-for-data-analysis/</guid>
+      <description>&lt;p&gt;Integers can be factored into products of special kinds of integers with useful properties called primes. Similarly, matrices can be factored into products of special kinds of matrices with useful properties.&lt;/p&gt;
+&lt;p&gt;Because data analysis often involves operating on numeric matrices, understanding how and why to factor matrices can be very helpful. We&amp;rsquo;re going to talk about the major factorizations, namely LU, Cholesky, QR, SVD, and Eigendecomposition. There are others, but if you master these, then you&amp;rsquo;re off to a great start.&lt;/p&gt;
+&lt;p&gt;Throughout we&amp;rsquo;re going to assume that all matrices are real-valued, because it makes the math slightly more pleasant most of the time, and because statisticians would start flipping over tables if you gave them matrices with complex numbers. Most of the core ideas are the same; only the small details change for the most part &amp;mdash; replace transposes with hermitians and so on. If you work with complex numbers, you know the drill.&lt;/p&gt;
+&lt;p&gt;This is written for the person who knows what a matrix is, has done some data analysis, and wants to know more about the math and computation behind many of the core operations of the field.&lt;/p&gt;
+&lt;h2 id=&#34;lu&#34;&gt;LU&lt;/h2&gt;
+&lt;p&gt;Anyone who took a matrix algebra course in university has seen the &lt;a href=&#34;https://en.wikipedia.org/wiki/LU_decomposition&#34;&gt;LU decomposition&lt;/a&gt; for square matrices, where you factor&lt;/p&gt;
+&lt;p&gt;$$ A = LU $$&lt;/p&gt;
+&lt;p&gt;Here, $L$ is a lower-triangular matrix and $U$ is an upper triangular matrix (hence the naming - lower/upper). This factorization is unique with some modest assumptions. If $A$ is invertible, then there is a unique unit-diagonal (which is a fancy way of saying the diagonal is all 1&amp;rsquo;s) $L$ and corresponding unique $U$.&lt;/p&gt;
+&lt;p&gt;This factorization is the basis of &lt;a href=&#34;https://en.wikipedia.org/wiki/LINPACK_benchmarks#HPLinpack&#34;&gt;the LINPACK benchmark&lt;/a&gt;, which is used to rank the peak performance of &lt;a href=&#34;https://top500.org/&#34;&gt;the Top 500 supercomputers&lt;/a&gt;. Specifically, the goal is to perform an LU decomposition with &amp;ldquo;partial pivoting&amp;rdquo; (row permutations only). It looks like&lt;/p&gt;
+&lt;p&gt;$$ A = PLU $$&lt;/p&gt;
+&lt;p&gt;where $P$ is a &lt;a href=&#34;https://en.wikipedia.org/wiki/Permutation_matrix&#34;&gt;permutation matrix&lt;/a&gt;. The $PLU$ variant is more versatile, as there are many more matrices you can factor as $PLU$ than $LU$. But everyone just calls this LU, and the subtlety isn&amp;rsquo;t worth spending much time thinking about.&lt;/p&gt;
+&lt;p&gt;LU is useful for things like solving square systems of equations and computing matrix inverses. This is why R uses &lt;code&gt;solve(x, y)&lt;/code&gt; for solving a system of equations and &lt;code&gt;solve(x)&lt;/code&gt; for inverting a matrix. It&amp;rsquo;s not a good interface choice, but there is a kind of logic to it. LU can also be used to calculate the determinant, which R&amp;rsquo;s &lt;code&gt;det()&lt;/code&gt; and &lt;code&gt;determinant()&lt;/code&gt; functions also use.&lt;/p&gt;
+&lt;p&gt;Solving a square system of equations is a pretty rare task in data analysis, but inverting things is common enough. Often times an analyst needs the elements of the inverse of a covariance matrix, for example. Although in this case, the matrix is probably symmetric (i.e. the upper and lower triangles are the same) depending on what you mean by &amp;ldquo;a covariance matrix&amp;rdquo;. So you would actually be better off using a Cholesky factorization instead (more on that next section).&lt;/p&gt;
+&lt;p&gt;It&amp;rsquo;s also worth noting that you usually don&amp;rsquo;t actually need to compute the matrix inverse, but the &lt;em&gt;action&lt;/em&gt; of the inverse. As noted above, statisticians sometimes legitimately need the elements of the inverse of a correlation matrix or whatever. But more often you need to compute something like $A^{-1} B$ rather than just $A^{-1}$ by itself. Yes, there is a difference. In this case, you would be better off doing something like factoring $A=LU$, then using &lt;a href=&#34;https://en.wikipedia.org/wiki/Triangular_matrix#Forward_and_back_substitution&#34;&gt;forward substitution followed by back substitution&lt;/a&gt; with $L$ and $U$, respectively, against $B$. Numerically, this is not the same as actually constructing $A^{-1}$ and then multiplying against $B$. The output may be more accurate if $A$ is ill-conditioned, and it will probably be faster.&lt;/p&gt;
+&lt;p&gt;You may be wondering why we&amp;rsquo;ve talked so much about matrix inversion and haven&amp;rsquo;t mentioned something like Gauss-Jordan elimination. That&amp;rsquo;s because this is not actually useful numerically for matrix inversion. Your math professor wasted your time by making you compute a bunch of those problems by hand.&lt;/p&gt;
+&lt;p&gt;Your favorite matrix software probably uses the &lt;a href=&#34;https://performance.netlib.org/lapack/&#34;&gt;LAPACK&lt;/a&gt; API for matrix factorizations. There are lots of implementations of the LAPACK interface, including free ones like &lt;a href=&#34;https://www.openblas.net/&#34;&gt;OpenBLAS&lt;/a&gt; and proprietary ones like &lt;a href=&#34;https://software.intel.com/content/www/us/en/develop/tools/math-kernel-library.html&#34;&gt;Intel&amp;rsquo;s MKL&lt;/a&gt;. There are also quasi-clones like &lt;a href=&#34;https://docs.nvidia.com/cuda/cusolver/index.html&#34;&gt;NVIDIA&amp;rsquo;s cuSOLVER&lt;/a&gt;, which has a subset of LAPACK functionality for GPUs. There is also a distributed version called &lt;a href=&#34;https://netlib.org/scalapack/&#34;&gt;ScaLAPACK&lt;/a&gt;. Then there are modern replacements, like &lt;a href=&#34;https://icl.cs.utk.edu/magma/&#34;&gt;MAGMA&lt;/a&gt; and &lt;a href=&#34;https://icl.utk.edu/slate/&#34;&gt;SLATE&lt;/a&gt;. Currently, &lt;a href=&#34;https://github.com/fml-fam/fml&#34;&gt;fml&lt;/a&gt; supports all of these except for MAGMA, which is on the to-do list.&lt;/p&gt;
+&lt;p&gt;All of these interfaces follow LAPACK conventions. If your matrix software doesn&amp;rsquo;t, it&amp;rsquo;s because they&amp;rsquo;re hiding those conventions from you &amp;mdash; they&amp;rsquo;re still using LAPACK or something that looks a lot like it. So throughout, I&amp;rsquo;m going to reference the LAPACK function (without leading type)&lt;/p&gt;
+&lt;p&gt;Anyway, to factor $A=LU$ in LAPACK, you would use the &lt;code&gt;getrf()&lt;/code&gt; function. This uses the convention that $L$ is unit-diagonal, which is actually important, but more on that in a bit. Once you&amp;rsquo;ve factored your matrix, you can call &lt;code&gt;getrs()&lt;/code&gt; to solve a system of equations, or &lt;code&gt;getri()&lt;/code&gt; to invert the matrix. Or, once factored you could make two calls to &lt;code&gt;trsm()&lt;/code&gt; to use the action of the inverse.&lt;/p&gt;
+&lt;p&gt;So why does it matter that the $L$ is unit-diagonal in LAPACK? A common trick in LAPACK and its derivatives is to store factorizations compactly. If you factor $A = PLU$ explicitly, then you need to triple the storage of the input. In practice, the &lt;code&gt;getrf()&lt;/code&gt; routines will replace $A$ by a unit-diagonal $L$ in the lower triangle of the input (not actually storing the diagonal because you know what it is), and the corresponding $U$ in the upper triangle plus diagonal part of the input, with the $P$ information living in a vector of swaps. Why store a bunch of zeros if you don&amp;rsquo;t have to?&lt;/p&gt;
+&lt;p&gt;Pretty much all of the LAPACK matrix factorizations will do things like this in one way or another. At the end of the day, your input matrix will be modified, either to store the return or as a kind of temporary workspace when the original data is no longer needed. Your favorite LAPACK bindings (Matlab, R, Armadillo, Julia, numpy, &amp;hellip;) will hide this from you by operating on a copy of the input. This is why operating at the level of LAPACK directly instead of a high-level interface can have massive performance and memory advantages, particularly for iterative algorithms. This is a big motivating reason why we try to stay closer to LAPACK style conventions in &lt;a href=&#34;https://github.com/fml-fam/fml&#34;&gt;fml&lt;/a&gt;.&lt;/p&gt;
+&lt;h2 id=&#34;cholesky&#34;&gt;Cholesky&lt;/h2&gt;
+&lt;p&gt;The Cholesky decomposition is a powerful but often overlooked matrix factorization. But first, and most importantly, how do you even say it? My understanding is that this is properly pronounced &amp;ldquo;ko-less-kee&amp;rdquo;, although I think most Anglophones substitute &amp;ldquo;cho&amp;rdquo; for &amp;ldquo;ko&amp;rdquo;. You&amp;rsquo;d have to ask a native French speaker if you wanted to know for sure.&lt;/p&gt;
+&lt;p&gt;That out of the way, we can think of the Cholesky decomposition as a factorization of $A = LU$ where $L$ and $U$ are lower/upper triangular, and $L^T = U$. Remember that we could factor many square matrices as $A = PLU$. However, here we additionally require that the matrix be symmetric (its transpose is itself again) and positive definite (eigenvalues are all positive). More on these assumptions in a bit.&lt;/p&gt;
+&lt;p&gt;But why even bother with this when we already have the more general LU? For the cases where Cholesky applies, in software it is generally faster to deal with. One of the reasons it&amp;rsquo;s faster is that you know for sure it does not have to pivot, while the LU might (and that&amp;rsquo;s not cheap). Memory consumption should basically be the same, although slightly less for Cholesky since there is no vector of pivots to store.&lt;/p&gt;
+&lt;p&gt;Usually the matrices in the Cholesky factorization are referred to as the left and right Cholesky factors. So they are usually denoted as $L$ and $R$. Because of this and the transpose connection between the two factors, you can basically take your pick of:&lt;/p&gt;
+&lt;p&gt;$$
+A = LR = LL^T = R^TR
+$$&lt;/p&gt;
+&lt;p&gt;Because the factorization takes a matrix and re-writes it as a product of essentially two copies of the same matrix (one merely transposed), this factorization is often thought of as computing the square root of a matrix. A square root of a number is another number such that when you square it you get the original number back. Similar idea here, but for matrices.&lt;/p&gt;
+&lt;p&gt;There are weirdos who deal with actual matrix square roots, where you factor $A = BB$ (no transpose). But I&amp;rsquo;m not aware of any real use for this kind of thing. And there are other &amp;ldquo;functions on matrices&amp;rdquo; that you can do, like the &lt;a href=&#34;https://en.wikipedia.org/wiki/Matrix_exponential&#34;&gt;matrix exponential&lt;/a&gt;. While lots of fun to talk about, this isn&amp;rsquo;t really related to matrix factorizations.&lt;/p&gt;
+&lt;p&gt;Let&amp;rsquo;s return for a moment to the assumptions, namely that the matrix is symmetric positive definite. It&amp;rsquo;s generally pretty easy to tell if a matrix is symmetric; positive definite is a bit harder, especially when you&amp;rsquo;re probably only interested in Cholesky for its low compute cost (and eigenvalues are expensive). However, for the applications that statisticians care about, you almost always get both for free.&lt;/p&gt;
+&lt;p&gt;If you want to calculate the left/right Cholesky factor of a covariance matrix, then you&amp;rsquo;re in luck! It must be symmetric because if $\Sigma = A^TA$ (I know there&amp;rsquo;s more to computing a covariance matrix but just go with it), then $\sigma_{ij} = A_i \cdot A_j$ for any $i, j$, where $A_i$ is the $i$&#39;th column vector of $A$. And of course the dot product is commutative. To see that it is positive definite intuitively, we&amp;rsquo;re squaring the matrix $A$ to compute $\Sigma$. So we&amp;rsquo;re squaring the eigenvalues, so we can take square roots, so they must be non-negative. Now that&amp;rsquo;s not a proof, but it&amp;rsquo;s correct intuition. We also might get into trouble if one is zero (positive semi-definite), but that&amp;rsquo;s not worth worrying about right now.&lt;/p&gt;
+&lt;p&gt;As noted several times, Cholesky is pretty quick, assuming your matrix meets the requirements. You can compute a Cholesky factor with LAPACK&amp;rsquo;s &lt;code&gt;potrf()&lt;/code&gt; function. This will give you either the left or right factor depending on which triangle of the input you told it to use. By convention, R&amp;rsquo;s &lt;code&gt;chol()&lt;/code&gt; will always return the right factor; in &lt;a href=&#34;https://github.com/fml-fam/fml&#34;&gt;fml&lt;/a&gt; we use the left. Once factored, you can use &lt;code&gt;potri()&lt;/code&gt; to compute the inverse, or &lt;code&gt;potrs()&lt;/code&gt; to solve a system of equations.&lt;/p&gt;
+&lt;h2 id=&#34;qr&#34;&gt;QR&lt;/h2&gt;
+&lt;p&gt;A very useful, but perhaps under-appreciated factorization is the &lt;a href=&#34;https://en.wikipedia.org/wiki/QR_decomposition&#34;&gt;QR factorization&lt;/a&gt;. Let&amp;rsquo;s assume for the moment that $A$ is $m\times n$ with $m \geq n$. Then we can factor&lt;/p&gt;
+&lt;p&gt;$$
+A_{m\times n} = Q_{m\times n} R_{n\times n}
+$$&lt;/p&gt;
+&lt;p&gt;where $R$ is upper triangular, and $Q$ is &lt;a href=&#34;https://en.wikipedia.org/wiki/Orthogonal_matrix&#34;&gt;orthogonal&lt;/a&gt;.&lt;/p&gt;
+&lt;p&gt;To say that a matrix is orthogonal is the same as saying that its transpose is its inverse. For a rectangular matrix, this only works along the short dimension. So if $Q$ is orthogonal of dimension $m\times n$ with $m\geq n$ then $Q^TQ = I_{n \times n}$ but $QQ^T$ will not be $I_{m\times m}$ (because the rows of $Q$ can not be linearly independent in this case). But if $m\leq n$ then $Q^TQ = QQ^T = I_{n\times n}$.&lt;/p&gt;
+&lt;p&gt;If $m &amp;lt; n$ then you still could factor $A=QR$, but the dimensions work out a little differently. And frankly, I don&amp;rsquo;t think there&amp;rsquo;s ever a good reason to do that. Instead you would use the LQ factorization&lt;/p&gt;
+&lt;p&gt;$$
+A_{m\times n} = L_{m\times m} Q_{m\times n}
+$$&lt;/p&gt;
+&lt;p&gt;where $L$ is lower triangular and $Q$ is again orthogonal. This time, $QQ^T = I_{m\times m}$.&lt;/p&gt;
+&lt;p&gt;Mathematically, LQ is just QR on a transposed matrix, because $\left(QR\right)^T = R^TQ^T$. But on a computer, you don&amp;rsquo;t want to have to store the matrix transpose if $A$ is large. Most people who say &amp;ldquo;QR&amp;rdquo; really mean &amp;ldquo;QR or LQ, whichever is cheaper&amp;rdquo;, without bothering to explicitly state it. Sadly, this means that poor old LQ doesn&amp;rsquo;t always get the attention it deserves. In fact, R considers LQ so uninteresting that they don&amp;rsquo;t even have LQ analogues of its QR functions. This annoys me more than you might expect. I mean come on, it&amp;rsquo;s the 21st century. They can put a man on the moon, but you can&amp;rsquo;t compute an LQ without a transpose? Really now.&lt;/p&gt;
+&lt;p&gt;So right away, this is in a different league than the previous two factorizations. First, we can apply it to rectangular matrices &amp;mdash; you know, the important ones? And while in principle you could use it to solve a square system of equations or even invert a matrix, there&amp;rsquo;s not really a good reason to do that. You already have LU and Cholesky, and QR will be slower for those applications.&lt;/p&gt;
+&lt;p&gt;So what can you use it for? One very useful application of QR is linear regression. You can build a linear model fitter fairly directly using QR. For generalized linear models, you can use &lt;a href=&#34;https://en.wikipedia.org/wiki/Iteratively_reweighted_least_squares&#34;&gt;iteratively reweighted least squares&lt;/a&gt; with the linear model fitter as the core driver.&lt;/p&gt;
+&lt;p&gt;I&amp;rsquo;ve gotten into borderline fist fights with statisticians when I say that &amp;ldquo;linear regression &lt;em&gt;is&lt;/em&gt; linear least squares&amp;rdquo;. Disagreement usually lives in whether or not you mean &amp;ldquo;ANOVA&amp;rdquo; when you say &amp;ldquo;linear regression&amp;rdquo;. Anyway I&amp;rsquo;m right and they&amp;rsquo;re wrong, and in linear least square you have a data matrix $X$ and response vector $y$ and you want to find a parameter vector $\beta$ that minimizes&lt;/p&gt;
+&lt;p&gt;$$
+\lVert X_{m\times n}\beta_{n\times 1} - y_{m\times 1} \lVert
+$$&lt;/p&gt;
+&lt;p&gt;If $X$ is full rank, then this has analytical solution&lt;/p&gt;
+&lt;p&gt;$$
+\beta = \left( X^T X \right)^{-1} X^T y
+$$&lt;/p&gt;
+&lt;p&gt;Often $X$ is not full rank, and in that case your cute little stats101 trick won&amp;rsquo;t work. It&amp;rsquo;s also a bad way to compute this in floating point arithmetic regardless of the column rank of the input; but to really get into that I need to talk about condition numbers, and I will do that in a later post. For now it&amp;rsquo;s worth pointing out that any statistical software written by anyone who remotely knows what they&amp;rsquo;re doing won&amp;rsquo;t implement linear regression this way.&lt;/p&gt;
+&lt;p&gt;So what &lt;em&gt;is&lt;/em&gt; the correct way to do it? Note that $\lVert Q \lVert = \lVert Q^T \lVert = 1$ and $\lVert AB \lVert \leq \lVert A \lVert \lVert B \lVert$, so&lt;/p&gt;
+&lt;p&gt;$$
+\begin{align*}
+\lVert X\beta - y \lVert &amp;amp;= \lVert QR\beta - y \lVert \\&lt;br&gt;
+&amp;amp;= \lVert Q^TQR\beta - Q^T y \lVert \\&lt;br&gt;
+&amp;amp;= \lVert R\beta - Q^T y \lVert
+\end{align*}
+$$&lt;/p&gt;
+&lt;p&gt;This is equivalent to solving the system&lt;/p&gt;
+&lt;p&gt;$$
+R\beta = Q^T y
+$$&lt;/p&gt;
+&lt;p&gt;Because $R$ is triangular, this can be done quickly and accurately using triangular solvers, like LAPACK&amp;rsquo;s &lt;code&gt;trtrs()&lt;/code&gt; functions. If your system is under-determined (i.e. $m&amp;lt;n$), you can play a similar game with LQ, but the math is a little more annoying.&lt;/p&gt;
+&lt;p&gt;Interestingly, R uses a modified version of the QR routine in the ancient predecessor to LAPACK called &lt;a href=&#34;https://www.netlib.org/linpack/&#34;&gt;LINPACK&lt;/a&gt; &amp;mdash; no, not the benchmark. They use this because QR solvers will make choices that can destroy information useful in ANOVA if you started with a rank degenerate model matrix.&lt;/p&gt;
+&lt;p&gt;For the sake of numerical stability, the LAPACK QR driver will choose the column with largest partial norm for pivoting while forming the Householder reflections. However, this can re-order the columns so that a statistical interpretation
+in an ANOVA is destroyed. The modifications in R&amp;rsquo;s QR driver (used in &lt;code&gt;lm()&lt;/code&gt; and &lt;code&gt;lm.fit()&lt;/code&gt;) implements a &amp;ldquo;limited column pivoting&amp;rdquo; strategy. Here, when a column is detected to have &amp;ldquo;small&amp;rdquo; partial norm, it is pushed to the back of the columns. The author of the modifications (who I believe to be Ross Ihaka) wrote this in the comments:&lt;/p&gt;
+&lt;blockquote&gt;
+&lt;p&gt;a limited column pivoting strategy based on the 2-norms of the reduced columns moves columns with near-zero norm to the right-hand edge of the x matrix. this strategy means that sequential one degree-of-freedom effects can be computed in a natural way.&lt;/p&gt;
+&lt;/blockquote&gt;
+&lt;blockquote&gt;
+&lt;p&gt;i am very nervous about modifying linpack code in this way. if you are a computational linear algebra guru and you really understand how to solve this problem please feel free to suggest improvements to this code.&lt;/p&gt;
+&lt;/blockquote&gt;
+&lt;p&gt;For what it&amp;rsquo;s worth, I&amp;rsquo;ve spoken to several members of the LAPACK team and they seem to believe that this strategy is essentially fine numerically. Outside of R&amp;rsquo;s linear model fitter, I modified the ScaLAPACK linear model fitter to support the limited pivoting strategy in &lt;a href=&#34;https://github.com/RBigData/pbdBASE&#34;&gt;the pbdBASE package&lt;/a&gt;. I suspect basically every quality statistical software does something like this, although I do not know for sure.&lt;/p&gt;
+&lt;p&gt;LAPACK has a least squares driver &lt;code&gt;gels()&lt;/code&gt; that will automatically use QR or LQ to find the least squares solution. If you want to do a QR directly, there are a few options; some pivot, some don&amp;rsquo;t. Pivoting is necessary if your matrix is (or might be if you don&amp;rsquo;t know) rank degenerate. If it does no pivoting, then it is basically assuming that the matrix has full column rank. The pivoting ones can be used as so-called &amp;ldquo;rank-revealing&amp;rdquo; QR. If pivoting, you would probably want &lt;code&gt;geqp3()&lt;/code&gt;, and if not you would use &lt;code&gt;geqrf()&lt;/code&gt;. Replace &lt;code&gt;qr&lt;/code&gt; with &lt;code&gt;lq&lt;/code&gt; for the LQ variants.&lt;/p&gt;
+&lt;p&gt;Like with LU, the QR factorization from LAPACK is stored compactly, replacing the input matrix. However, the way it is stored is quite a bit more complicated than LU. For QR, the upper triangle plus diagonal will be the $R$ matrix. Obviously the lower triangle can&amp;rsquo;t be $Q$, because it&amp;rsquo;s not a lower triangular matrix. Instead, you would use the additional function &lt;code&gt;ormqr()&lt;/code&gt; to operate on the action of $Q$ or its transpose. If you really want the elements of $Q$, you can use &lt;code&gt;orgqr()&lt;/code&gt; which is in-place, or use &lt;code&gt;ormqr()&lt;/code&gt; against a diagonal matrix of all 1&amp;rsquo;s (a &amp;ldquo;rectangular identity matrix&amp;rdquo;). The same things all hold true for LQ.&lt;/p&gt;
+&lt;h2 id=&#34;singular-value-decomposition&#34;&gt;Singular Value Decomposition&lt;/h2&gt;
+&lt;p&gt;Probably the most important and powerful of the factorizations is the &lt;a href=&#34;https://en.wikipedia.org/wiki/Singular_value_decomposition&#34;&gt;singular value decomposition&lt;/a&gt;, aka SVD.&lt;/p&gt;
+&lt;p&gt;If $A$ is an $m\times n$ matrix then&lt;/p&gt;
+&lt;p&gt;$$
+A_{m\times n} = U_{m\times k} \Sigma_{k\times k} V_{n\times k}^T
+$$&lt;/p&gt;
+&lt;p&gt;where $k$ is usually the minimum of $m$ and $n$ (although it may be taken to be the rank of $A$ which is no greater than the minimum of $m$ and $n$), $\Sigma$ is a diagonal matrix, and $U$ and $V$ are orthogonal. This is sometimes called the &amp;ldquo;compact SVD&amp;rdquo;. Although it&amp;rsquo;s basically never done in software, we could take the &amp;ldquo;full SVD&amp;rdquo; as&lt;/p&gt;
+&lt;p&gt;$$
+A_{m\times n} = U_{m\times m} \Sigma_{m\times n} V^T_{n\times n}
+$$&lt;/p&gt;
+&lt;p&gt;When I said SVD is the most powerful factorization, I wasn&amp;rsquo;t joking. You can do &lt;em&gt;&lt;strong&gt;anything&lt;/strong&gt;&lt;/em&gt; with an SVD. Matrix inverse? Easy&lt;/p&gt;
+&lt;p&gt;$$
+A^{-1} = V \Sigma^{-1} U^T
+$$&lt;/p&gt;
+&lt;p&gt;Solve a system of equations? Don&amp;rsquo;t make me laugh&lt;/p&gt;
+&lt;p&gt;$$
+Ax=b \iff x = V \Sigma^{-1} U^Tb
+$$&lt;/p&gt;
+&lt;p&gt;Determinant? Are you even trying?&lt;/p&gt;
+&lt;p&gt;$$
+det(A) = det(U \Sigma V^T) = det(\Sigma) = \displaystyle\prod_{i=1}^n \sigma_{ii}
+$$&lt;/p&gt;
+&lt;p&gt;Linear regression? HAVE YOU EVEN BEEN PAYING ATTENTION?&lt;/p&gt;
+&lt;p&gt;$$
+y = X\beta \iff \beta = V \Sigma^{-1} U^T y
+$$&lt;/p&gt;
+&lt;p&gt;Condition number? SVD.&lt;/p&gt;
+&lt;p&gt;Column rank? SVD.&lt;/p&gt;
+&lt;p&gt;PCA &lt;em&gt;&lt;strong&gt;is&lt;/strong&gt;&lt;/em&gt; SVD.&lt;/p&gt;
+&lt;p&gt;SVD is &lt;em&gt;love&lt;/em&gt;.&lt;/p&gt;
+&lt;p&gt;SVD is &lt;em&gt;life&lt;/em&gt;.&lt;/p&gt;
+&lt;p&gt;&lt;em&gt;&lt;strong&gt;ALL HAIL SVD&lt;/strong&gt;&lt;/em&gt;.&lt;/p&gt;
+&lt;p&gt;Frankly I&amp;rsquo;m not convinced there&amp;rsquo;s anything you can do with a matrix that can&amp;rsquo;t be improved with an SVD. Almost all matrix math problems get easier when you take the SVD. Mathematically, it is strictly better than QR. Computationally, it is more expensive to compute and needs more memory.&lt;/p&gt;
+&lt;p&gt;SVD being so obviously important, a lot of study and care has been devoted to calculating this factorization. The core technique for most solvers uses something called the &lt;a href=&#34;https://en.wikipedia.org/wiki/QR_algorithm&#34;&gt;QR algorithm&lt;/a&gt;. You may be surprised to learn that this involves a QR factorization, although it&amp;rsquo;s a bit more involved than I want to get into.&lt;/p&gt;
+&lt;p&gt;LAPACK has several routines for computing singular values/vectors. Probably the most commonly used are &lt;code&gt;gesvd()&lt;/code&gt; and &lt;code&gt;gesdd()&lt;/code&gt;. The first uses the QR algorithm, while the second uses a divide-and-conquer algorithm. If you are only computing singular values, they should be the same. For computing singular vectors, the divide-and-conquer approach should be much faster. LAPACK also includes &lt;code&gt;gesvdj()&lt;/code&gt;, which uses Jacobi rotations to compute the SVD. Personally I never see any reason to use these over &lt;code&gt;gesdd()&lt;/code&gt;, but I encourage you to explore for yourself.&lt;/p&gt;
+&lt;p&gt;All of these functions will compute all singular values and/or vectors (for the compact SVD), even if you just need a few. In R&amp;rsquo;s &lt;code&gt;La.svd()&lt;/code&gt; and &lt;code&gt;svd()&lt;/code&gt; bindings, you can request a subset of singular vectors. But actually, your choices are none of them or all of them (you can compute only the singular values without any singular vectors though). So if you only want one, it will compute all of them and then throw away what you didn&amp;rsquo;t want.&lt;/p&gt;
+&lt;p&gt;If you only want a few singular vectors (e.g. making a plot from the first few principal components), you may be interested in a &amp;ldquo;truncated SVD&amp;rdquo;, not to be confused with &amp;ldquo;compact SVD&amp;rdquo;. There are some common techniques for approximating truncated SVD. There is the &lt;a href=&#34;https://en.wikipedia.org/wiki/Lanczos_algorithm&#34;&gt;Lanczos algorithm&lt;/a&gt;, which I wrote about extensively &lt;a href=&#34;https://fml-fam.github.io/blog/blog/2020/06/15/svd-via-lanczos-iteration/&#34;&gt;in a previous post&lt;/a&gt;. Then there&amp;rsquo;s my personal favorite method, that uses &lt;a href=&#34;https://arxiv.org/abs/0909.4061&#34;&gt;random projections&lt;/a&gt;.&lt;/p&gt;
+&lt;p&gt;Sometimes, especially in algorithmic explanations, SVD will only be described for square matrices. There&amp;rsquo;s a fun little trick you can do to reduce a rectangular matrix to a square one for computing SVD. Let&amp;rsquo;s say $A_{m\times n}$ is a rectangular matrix with $m&amp;gt;n$, and you know how to compute the SVD of a square matrix. Then we can factor $A=QR$ first, and take the SVD of the square matrix $R$. It goes something like this:&lt;/p&gt;
+&lt;p&gt;$$
+\begin{align*}
+A &amp;amp;= QR \\&lt;br&gt;
+&amp;amp;= Q \left( U_R \Sigma_R V_R^T \right) \\&lt;br&gt;
+&amp;amp;= \left( Q U_R \right) \Sigma_R V_R^T
+\end{align*}
+$$&lt;/p&gt;
+&lt;p&gt;Then $U_A = Q U_R$ because a product of orthogonal matrices is orthogonal, and $\Sigma_A = \Sigma_R$ and $V_A = V_R$. The LAPACK routines discussed above use this strategy.&lt;/p&gt;
+&lt;h2 id=&#34;eigendecomposition&#34;&gt;Eigendecomposition&lt;/h2&gt;
+&lt;p&gt;Given a square, symmetric matrix $A$ of order $n$, its eigenvalue decomposition (aka &amp;ldquo;eigendecomposition&amp;rdquo;, aka &amp;ldquo;spectral decomposition&amp;rdquo;) is&lt;/p&gt;
+&lt;p&gt;$$
+A = V \Lambda V^T
+$$&lt;/p&gt;
+&lt;p&gt;where $V$ is an orthogonal matrix and $\Lambda$ is diagonal, each of order $n$. Both are guaranteed to be real-valued since $A$ is symmetric. You can discuss eigendecompositions for non-symmetric matrices, but both the eigenvalues (diagonals of the $\Lambda$ matrix) and eigenvectors are no longer guaranteed to be real-valued, even if $A$ is. The reason why is explored in the fundamental theorem of algebra.&lt;/p&gt;
+&lt;p&gt;In school, everyone learns about eigenvalues because they&amp;rsquo;re important to engineers. For data analysis, they are largely unimportant. They can be used to compute the &lt;a href=&#34;https://en.wikipedia.org/wiki/Trace_%28linear_algebra%29&#34;&gt;trace&lt;/a&gt; (i.e., the sum of the diagonal) of a square matrix in the most computationally expensive way imaginable. They can also be used to compute the determinant, although it is generally much faster to use LU.&lt;/p&gt;
+&lt;p&gt;Probably the only reason anyone interested in data analysis would actually care about spectral decomposition is because of its interesting relationship to SVD. If $A$ is a rectangular matrix and $A = U\Sigma V^T$ then&lt;/p&gt;
+&lt;p&gt;$$
+\begin{align*}
+A^TA &amp;amp;= \left( U \Sigma V^T \right)^T \left( U \Sigma V^T \right) \\&lt;br&gt;
+&amp;amp;= V \Sigma U^T U \Sigma V^T \\&lt;br&gt;
+&amp;amp;= V \Sigma^2 V^T
+\end{align*}
+$$&lt;/p&gt;
+&lt;p&gt;So the eigenvalues of $A^TA$ are the square of the singular values of $A$, and the eigenvectors of $A^TA$ are the right singular vectors of $A$. If we know $\Sigma$ and $V$ then we can recover $U$ easily since $U = A V \Sigma^{-1}$.&lt;/p&gt;
+&lt;p&gt;Likewise, $AA^T = U \Sigma^2 U^T$.&lt;/p&gt;
+&lt;p&gt;This trick is how many big data frameworks will compute SVD. If $n$ is small in absolute terms, then you can distribute you matrix across multiple processes by rows. Once you compute $A^TA$ &amp;mdash; which will require communication &amp;mdash; all the remaining operations are local. For the product, you first compute the local product, then add up all of the local matrices. This is equivalent to an MPI allreduce operation. After that, the eigendecomposition is local, and you can use LAPACK or whatever.&lt;/p&gt;
+&lt;p&gt;The advantages to this strategy are that it can be very quick computationally, and it&amp;rsquo;s very easy to implement. But there are some issues with this approach. For one, expressly computing $A^TA$ or $AA^T$ will square the &lt;a href=&#34;https://en.wikipedia.org/wiki/Condition_number&#34;&gt;condition number&lt;/a&gt; of $A$. I will have more to say about condition numbers in a later post, but let&amp;rsquo;s just say for now that this is a bad thing. So if you are doing your computing in floating point and accuracy is important, this may not be a good strategy for computing singular values. It would be better to use something like a tall skinny QR algorithm (TSQR). I don&amp;rsquo;t feel like getting into what that is right now, but trust me, it&amp;rsquo;s a real thing.&lt;/p&gt;
+&lt;p&gt;The other major issue staring us in the face is, of course, how we handle the case where $n$ is large in absolute terms, or if $m$ and $n$ are &amp;ldquo;kinda large&amp;rdquo; but $A$ is nearly square. Then computing either $A^TA$ or $AA^T$ potentially consumes a lot of memory.&lt;/p&gt;
+&lt;p&gt;In LAPACK, you have quite a few choices for symmetric eigensolvers. The two I think are most immediately worth looking at are the relatively robust representations method implemented in &lt;code&gt;syevr()&lt;/code&gt; and the divide-and-conquer method implemented in &lt;code&gt;syevd()&lt;/code&gt;. Years ago, &lt;a href=&#34;http://librestats.com/2016/10/28/comparing-symmetric-eigenvalue-performance/&#34;&gt;I wrote about the differences&lt;/a&gt; between these two in yet another way too lengthy post. The tldr is that the divide-and-conquer method is more scalable for multicore but uses a TON of memory.&lt;/p&gt;
+&lt;p&gt;There are other libraries like &lt;a href=&#34;https://www.netlib.org/eispack/&#34;&gt;EISPACK&lt;/a&gt; (har har har, get it?) and &lt;a href=&#34;https://www.caam.rice.edu/software/ARPACK/&#34;&gt;ARPACK&lt;/a&gt;. But really all you need is in LAPACK, its clones like cuSOLVER, or its modern variants like &lt;a href=&#34;https://icl.cs.utk.edu/magma/&#34;&gt;MAGMA&lt;/a&gt;.&lt;/p&gt;
+&lt;p&gt;Like with SVD, I&amp;rsquo;m sure there are lots of ways of computing truncated eigendecompositions, although I don&amp;rsquo;t know anything about them because again, it&amp;rsquo;s a mostly useless factorization for data analysis. If you only want one eigen value/vector, you can use &lt;a href=&#34;https://en.wikipedia.org/wiki/Power_iteration&#34;&gt;power iteration&lt;/a&gt;, which is actually related to the matrix exponential; but I&amp;rsquo;m not getting into that now.&lt;/p&gt;
+&lt;h2 id=&#34;others&#34;&gt;Others&lt;/h2&gt;
+&lt;p&gt;In my opinion, these make up the &amp;ldquo;core&amp;rdquo; matrix factorizations, particularly for data scientists. There are of course others, although many are what I would call less useful generalizations of the above (e.g. &lt;a href=&#34;https://en.wikipedia.org/wiki/LU_decomposition#LDU_decomposition&#34;&gt;LDU&lt;/a&gt; and &lt;a href=&#34;https://en.wikipedia.org/wiki/Schur_decomposition#Generalized_Schur_decomposition&#34;&gt;QZ&lt;/a&gt;). There are also some more specialized things like &lt;a href=&#34;https://en.wikipedia.org/wiki/Non-negative_matrix_factorization&#34;&gt;non-negative matrix factorization&lt;/a&gt;. Also, apparently k-means clustering &lt;a href=&#34;https://arxiv.org/abs/1512.07548&#34;&gt;can be formulated as a matrix factorization problem&lt;/a&gt;, although I think this is more interesting than it is useful.&lt;/p&gt;
+&lt;p&gt;If you studied math in school, you may well have spent ages talking about &lt;a href=&#34;https://en.wikipedia.org/wiki/Jordan_normal_form&#34;&gt;the Jordan canonical form&lt;/a&gt; without ever hearing about anything actually useful like SVD (I did). These kinds of formulations are interesting to mathematicians because they are powerful at proving yet more things that are equally useless. Best to ignore them.&lt;/p&gt;
+&lt;h2 id=&#34;exercises&#34;&gt;Exercises&lt;/h2&gt;
+&lt;p&gt;Well this kind of got out of hand. I didn&amp;rsquo;t mean to turn this into a book. But here we are, so I figure the least I can do is give you some problems.&lt;/p&gt;
+&lt;p&gt;Math problems&lt;/p&gt;
+&lt;ol&gt;
+&lt;li&gt;Let $A$ be a square matrix of order $n$ and let $A = PLU$.
+&lt;ol&gt;
+&lt;li&gt;What is the contribution of $P$ to the determinant of $A$? Recall that $det(AB) = det(A)det(B)$.&lt;/li&gt;
+&lt;li&gt;Describe a strategy to calculate its determinant using this factorization. You may assume without proof that $det(T) = \displaystyle\prod_{i=1}^n t_{ii}$ for a triangular matrix $T_{n\times n}$&lt;/li&gt;
+&lt;/ol&gt;
+&lt;/li&gt;
+&lt;li&gt;Let $A$ be a square matrix of order $n$.
+&lt;ol&gt;
+&lt;li&gt;If $A$ is positive definite, describe a strategy to calculate its determinant using its cholesky factorization.&lt;/li&gt;
+&lt;li&gt;What if $A$ is positive semi-definite but not positive definite? (hint: see problem 7 part 1)&lt;/li&gt;
+&lt;/ol&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;ol&gt;
+&lt;li&gt;Prove that a product of 2 orthogonal matrices is again orthogonal.&lt;/li&gt;
+&lt;li&gt;Prove that if $Q$ is a square orthogonal matrix, its determinant must be 1 or -1 (hint: start with $Q^TQ = I$).&lt;/li&gt;
+&lt;li&gt;If a square matrix has determinant 1, is it necessarily orthogonal?&lt;/li&gt;
+&lt;/ol&gt;
+&lt;/li&gt;
+&lt;li&gt;Let $X$ be an $m\times n$ matrix with $m &amp;lt; n$ and let $y$ be an $m$-length vector. Use $X=LQ$ to solve the linear least square problem $\displaystyle\min_\beta \lVert X\beta - y \lVert$. Are there any subtleties here for implementing this in software?&lt;/li&gt;
+&lt;li&gt;Let $A$ be a square, symmetric matrix of order $n$, and let $A = U \Sigma V^T$ be its SVD.
+&lt;ol&gt;
+&lt;li&gt;Show that $U = V$.&lt;/li&gt;
+&lt;li&gt;Assume that each singular value $\sigma_i \geq 0$. Given this, find the matrix square root of $A$, that is, the matrix $B$ so that $BB = A$.&lt;/li&gt;
+&lt;/ol&gt;
+&lt;/li&gt;
+&lt;li&gt;Let $A$ be a square matrix of order $n$. The polar decomposition is a matrix factorization where $A = UP$, where $U$ is orthogonal and $P$ is positive semi-definite, each of order $n$. Derive $U$ and $P$ via the SVD (hint: $U_\text{polar}$ is not $U_\text{svd}$).&lt;/li&gt;
+&lt;li&gt;Let $A$ be a square symmetric matrix of order $n$.
+&lt;ol&gt;
+&lt;li&gt;Use its eigendecomposition to calculate $det(A)$.&lt;/li&gt;
+&lt;li&gt;Using only its eigendecomposition, show that the trace of $A$ is equal to the sum of the eigenvalues (hint: first show that by combining the definitions of trace and matrix product, $tr(AB) = tr(BA)$; or use your fancy inner product math if you know that).&lt;/li&gt;
+&lt;/ol&gt;
+&lt;/li&gt;
+&lt;/ol&gt;
+&lt;p&gt;Programming problems&lt;/p&gt;
+&lt;ol&gt;
+&lt;li&gt;Implement a function that can solve a (square) system of equations $Ax=b$ by factoring $A=LU$, but without ever constructing $A^{-1}$. You may use your programming language&amp;rsquo;s triangular system solvers (e.g., &lt;code&gt;backsolve()&lt;/code&gt; and &lt;code&gt;forwardsolve()&lt;/code&gt; in R).&lt;/li&gt;
+&lt;li&gt;Construct a symmetric matrix $A$ of order $n$ of random normal values.
+&lt;ol&gt;
+&lt;li&gt;Compare the run time computing the inverse using a general matrix inverter (LU) vs using Cholesky. Try with various values of $n$.&lt;/li&gt;
+&lt;li&gt;Compare the run time computing the determinant with an implementation that uses LU (e.g. R&amp;rsquo;s &lt;code&gt;det()&lt;/code&gt;) to one using Cholesky. Try with various values of $n$.&lt;/li&gt;
+&lt;li&gt;When was Cholesky better than LU? What are the tradeoffs to each approach?&lt;/li&gt;
+&lt;/ol&gt;
+&lt;/li&gt;
+&lt;li&gt;Let $X$ be an $m\times n$ matrix with $m&amp;gt;n$ and $y$ an $m$-length vector.
+&lt;ol&gt;
+&lt;li&gt;Implement a function &lt;code&gt;lm_xtx()&lt;/code&gt; that takes arguments $X$ and $y$ and computes the linear regression coefficients $\beta$ using the analytical solution.&lt;/li&gt;
+&lt;li&gt;Implement a function &lt;code&gt;lm_qr()&lt;/code&gt; that takes arguments $X$ and $y$ and computes the linear regression coefficients $\beta$ using the QR formulation.&lt;/li&gt;
+&lt;li&gt;Let $X$ be the $7\times 7$ &lt;a href=&#34;https://en.wikipedia.org/wiki/Hilbert_matrix&#34;&gt;Hilbert matrix&lt;/a&gt;, and let $y$ be $[1, 2, 3, 4, 5, 6, 7]^T$. Test your &lt;code&gt;lm_qr()&lt;/code&gt; function first, then test &lt;code&gt;lm_xtx()&lt;/code&gt;. Did anything interesting happen?&lt;/li&gt;
+&lt;/ol&gt;
+&lt;/li&gt;
+&lt;li&gt;Implement a matrix square root function (use problem 5 above). If the input is an invalid matrix under our assumptions (non-square, non-symmetric, non- positive semi-definite), it should detect this and throw an error.&lt;/li&gt;
+&lt;li&gt;For each of the following, assume all matrix inputs are square and symmetric.
+&lt;ol&gt;
+&lt;li&gt;Implement a function to compute the determinant using eigendecomposition. Compare the run time performance to an implementation that uses LU on a random matrix. Try many different matrix sizes.&lt;/li&gt;
+&lt;li&gt;Implement a function to compute the trace using eigendecomposition. Compare the run time performance to simply summing the diagonal of the input. Try many different matrix sizes.&lt;/li&gt;
+&lt;/ol&gt;
+&lt;/li&gt;
+&lt;/ol&gt;
+&lt;p&gt;Challenge problems&lt;/p&gt;
+&lt;ol&gt;
+&lt;li&gt;(difficulty: ruthless shilling) Use &lt;a href=&#34;https://github.com/fml-fam/fml&#34;&gt;fml&lt;/a&gt; or &lt;a href=&#34;https://github.com/fml-fam/fmlr&#34;&gt;fmlr&lt;/a&gt; to experiment with the programming problems above.&lt;/li&gt;
+&lt;li&gt;(difficulty: fortran) Go learn about the strange naming scheme for LAPACK functions.&lt;/li&gt;
+&lt;li&gt;(difficulty: &amp;ldquo;we&amp;rsquo;re, like, all the same, man&amp;rdquo;) Compare the LU, Cholesky, QR, SVD, and Eigendecomposition API&amp;rsquo;s across several of the mainstream languages (R, Matlab, Julia, python&amp;rsquo;s numpy, &amp;hellip;).&lt;/li&gt;
+&lt;li&gt;(difficulty: impossible) Find something SVD isn&amp;rsquo;t good for.&lt;/li&gt;
+&lt;/ol&gt;
+</description>
+    </item>
     
     <item>
       <title>Vignette-less Articles With pkgdown</title>

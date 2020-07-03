@@ -4,22 +4,32 @@
   
   <url>
     <loc>https://fml-fam.github.io/blog/</loc>
-    <lastmod>2020-06-23T00:00:00+00:00</lastmod>
+    <lastmod>2020-07-03T00:00:00+00:00</lastmod>
+  </url>
+  
+  <url>
+    <loc>https://fml-fam.github.io/blog/tags/math/</loc>
+    <lastmod>2020-07-03T00:00:00+00:00</lastmod>
+  </url>
+  
+  <url>
+    <loc>https://fml-fam.github.io/blog/2020/07/03/matrix-factorizations-for-data-analysis/</loc>
+    <lastmod>2020-07-03T00:00:00+00:00</lastmod>
   </url>
   
   <url>
     <loc>https://fml-fam.github.io/blog/post/</loc>
-    <lastmod>2020-06-23T00:00:00+00:00</lastmod>
+    <lastmod>2020-07-03T00:00:00+00:00</lastmod>
   </url>
   
   <url>
     <loc>https://fml-fam.github.io/blog/tags/r/</loc>
-    <lastmod>2020-06-23T00:00:00+00:00</lastmod>
+    <lastmod>2020-07-03T00:00:00+00:00</lastmod>
   </url>
   
   <url>
     <loc>https://fml-fam.github.io/blog/tags/</loc>
-    <lastmod>2020-06-23T00:00:00+00:00</lastmod>
+    <lastmod>2020-07-03T00:00:00+00:00</lastmod>
   </url>
   
   <url>
@@ -30,11 +40,6 @@
   <url>
     <loc>https://fml-fam.github.io/blog/2020/06/21/introducing-fml-the-fused-matrix-library/</loc>
     <lastmod>2020-06-21T00:00:00+00:00</lastmod>
-  </url>
-  
-  <url>
-    <loc>https://fml-fam.github.io/blog/tags/math/</loc>
-    <lastmod>2020-06-15T00:00:00+00:00</lastmod>
   </url>
   
   <url>

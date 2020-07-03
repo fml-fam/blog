@@ -7,10 +7,20 @@
     <generator>Hugo -- gohugo.io</generator>
     <language>en-us</language>
     <copyright>This work is licensed under a Creative Commons Attribution-ShareAlike 4.0 International License.</copyright>
-    <lastBuildDate>Tue, 23 Jun 2020 00:00:00 +0000</lastBuildDate>
+    <lastBuildDate>Fri, 03 Jul 2020 00:00:00 +0000</lastBuildDate>
     
 	<atom:link href="https://fml-fam.github.io/blog/tags/r/index.xml" rel="self" type="application/rss+xml" />
     
+    
+    <item>
+      <title>Matrix Factorizations for Data Analysis</title>
+      <link>https://fml-fam.github.io/blog/2020/07/03/matrix-factorizations-for-data-analysis/</link>
+      <pubDate>Fri, 03 Jul 2020 00:00:00 +0000</pubDate>
+      
+      <guid>https://fml-fam.github.io/blog/2020/07/03/matrix-factorizations-for-data-analysis/</guid>
+      <description>Integers can be factored into products of special kinds of integers with useful properties called primes. Similarly, matrices can be factored into products of special kinds of matrices with useful properties.
+Because data analysis often involves operating on numeric matrices, understanding how and why to factor matrices can be very helpful. We&amp;rsquo;re going to talk about the major factorizations, namely LU, Cholesky, QR, SVD, and Eigendecomposition. There are others, but if you master these, then you&amp;rsquo;re off to a great start.</description>
+    </item>
     
     <item>
       <title>Vignette-less Articles With pkgdown</title>
