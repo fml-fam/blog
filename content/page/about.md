@@ -3,7 +3,7 @@ title: "About"
 author: "wrathematics"
 ---
 
-This is a blog dedicated to the [fml project](https://github.com/fml-fam/), which is at its heart a C++ library for high-performance dense matrix computing. Sometimes I also talk about math related to things I'm thinking about in fml.
+This is a blog dedicated to the [fml project](https://github.com/fml-fam/), a C++ framework for high-performance dense matrix computing. Sometimes I also talk about math related to things I'm thinking about in fml.
 
 I use a lot of LaTeX in posts, so enabling JavaScript for [MathJax](https://www.mathjax.org/) will make things look much nicer. I don't use any kind of trackers (that I'm aware of). Currently I use [GitHub Pages](https://pages.github.com/) for hosting. The blog framework is [Hugo](https://gohugo.io/) with a slightly modified Hugo theme [onetwothree](https://github.com/schollz/onetwothree). Source for the blog is available [here](https://github.com/fml-fam/blog).
 
