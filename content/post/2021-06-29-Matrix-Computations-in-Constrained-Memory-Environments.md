@@ -13,7 +13,7 @@ The actual problem is somewhat standard fare for someone coming from statistics.
 
 $$ SS^T $$
 
-At first I didn't blush at this because sometimes statisticians need to calculate correlation or covariance matrices to operate on their explicit values. That turns out to not be exactly what this researcher needed. Some readers may already see the punchline coming. For those who don't, this turns out to make for a remarkably good demonstration of some computational basic principles, so let us proceed with the problem as stated.
+At first I didn't blush at this because sometimes statisticians need to calculate correlation or covariance matrices to operate on their explicit values. That turns out to *not* be what this researcher actually needed. Some readers may already see the punchline coming. For those who don't, this turns out to make for a remarkably good demonstration of some basic computational principles, so let us proceed with the problem as stated.
 
 One option is to go out of core. There are a variety of R packages for this kind of thing, like [ff](https://cran.r-project.org/web/packages/ff/index.html) and [bigmemory](https://cran.r-project.org/web/packages/ff/index.html), although I have no direct experience with either and can't speak either way to how they handle numerics or what they offer. Another option is to go distributed. For that, your major options are [pbdR](https://pbdr.org/) and [fmlr](http://github.com/fml-fam/fmlr), the latter with the MPIMAT backend.
 
