@@ -1,0 +1,211 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+	<meta charset="utf-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1">
+	
+	<title>Matrix Computations in Constrained Memory Environments</title>
+	
+	<meta name="description" content="">
+	<meta name="image" content="">
+	
+	<meta itemprop="name" content="Matrix Computations in Constrained Memory Environments">
+	<meta itemprop="description" content="">
+	<meta itemprop="image" content="">
+	
+	<meta name="og:title" content="Matrix Computations in Constrained Memory Environments">
+	<meta name="og:description" content="">
+	
+	<meta name="og:url" content="https://fml-fam.github.io/blog/2021/06/29/matrix-computations-in-constrained-memory-environments/">
+	<meta name="og:site_name" content="Matrix Computations in Constrained Memory Environments">
+	<meta name="og:type" content="article">
+	
+	<meta name="article:author" content="wrathematics">
+	<meta name="article:tag" content="r ">
+	<link rel="stylesheet" type="text/css" href="/blog/css/style3.css">
+	<script src="/blog/js/caption.js"></script>
+</head>
+<body>
+
+<header >
+	<a href="/blog" style="float: left;color:#777;"><strong>fml blog</strong>
+	</a>
+	<a href="/blog/index.xml" style="color:#777;float: left;"><strong>
+		&nbsp;
+	<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather feather-rss"><path d="M4 11a9 9 0 0 1 9 9"></path><path d="M4 4a16 16 0 0 1 16 16"></path><circle cx="5" cy="19" r="1"></circle></svg>
+</strong></a>
+<a href="https://fml-fam.github.io/blog/page/about/" style="color:#777;"><strong>About</strong></a>
+
+</header>
+
+
+<script>
+function fadeOut(el) {
+  el.style.opacity = 1;
+
+  var last = +new Date();
+  var tick = function() {
+    el.style.opacity = +el.style.opacity - (new Date() - last) / 80;
+    last = +new Date();
+    
+
+    if (el.style.opacity > 0) {
+      (window.requestAnimationFrame && requestAnimationFrame(tick)) || setTimeout(tick, 16);
+    } else {
+    	el.style.display='none';
+    }
+  };
+
+  tick();
+}
+
+function ready(fn) {
+    if (document.attachEvent ? document.readyState === "complete" : document.readyState !== "loading") {
+        var elements = document.querySelectorAll("img");
+        Array.prototype.forEach.call(elements, function(el, i) {
+            if (el.getAttribute("alt")) {
+                const caption = document.createElement('figcaption');
+                var node = document.createTextNode(el.getAttribute("alt"));
+                caption.appendChild(node);
+                const wrapper = document.createElement('figure');
+                wrapper.className = 'image';
+                el.parentNode.insertBefore(wrapper, el);
+                el.parentNode.removeChild(el);
+                wrapper.appendChild(el);
+                wrapper.appendChild(caption);
+            }
+        });
+
+    } else {
+        document.addEventListener('DOMContentLoaded', fn);
+    }
+}
+window.onload = ready;
+</script>
+
+<div class="content">
+	<h1>Matrix Computations in Constrained Memory Environments <aside><a href="/blog/tags/r/" class="w3-tag">/r</a>&nbsp;&nbsp;&nbsp;</aside></h1>
+  
+  	<p><small><em>Written Tue, June 29, 2021. </em>
+  	</small></p>
+  
+  
+  <p>Many times in my professional career, a researcher will approach me for help performing some kind of matrix calculation that is getting &ldquo;expensive&rdquo; as their data grows. Sometimes the expense is in compute time: it&rsquo;s just taking too long. Recently, someone approached me who didn&rsquo;t care at all how long it took to compute something. Their problem was getting the thing to run within the RAM constraints in their particular computing environment, which they couldn&rsquo;t really deviate from.</p>
+<p>This particular researcher was using R, which shows remarkably good taste on their part. And although I will be using R for the code snippets, the general principles apply to any language.</p>
+<p>The actual problem is somewhat standard fare for someone coming from statistics. They have a few different data sets of varying sizes &mdash; I don&rsquo;t want to give exact numbers, but something on the order of 100,000 rows, and a varying number of columns, order of 10 at the small end and 1000 at the large end. They were interested in computing a correlation matrix based on the rows rather than the columns; i.e. they wanted to scale the data by mean and variance to produce a matrix $S$ and then compute</p>
+<p>$$ SS^T $$</p>
+<p>At first I didn&rsquo;t blush at this because sometimes statisticians need to calculate correlation or covariance matrices to operate on their explicit values. That turns out to not be exactly what this researcher needed. Some readers may already see the punchline coming. For those who don&rsquo;t, this turns out to make for a remarkably good demonstration of some computational basic principles, so let us proceed with the problem as stated.</p>
+<p>One option is to go out of core. There are a variety of R packages for this kind of thing, like <a href="https://cran.r-project.org/web/packages/ff/index.html">ff</a> and <a href="https://cran.r-project.org/web/packages/ff/index.html">bigmemory</a>, although I have no direct experience with either and can&rsquo;t speak either way to how they handle numerics or what they offer. Another option is to go distributed. For that, your major options are <a href="https://pbdr.org/">pbdR</a> and <a href="http://github.com/fml-fam/fmlr">fmlr</a>, the latter with the MPIMAT backend.</p>
+<p>These approaches have different pros and cons. Pro of working out of core is you can stick with your workstation. A major con is that you&rsquo;re now reliant on the I/O performance of your disk, which sucks (yes, even your ssd). This can also be hard to do, which is a con; but as I have no direct use with the aforementioned packages, I can&rsquo;t comment on this. A pro of going distributed is that it&rsquo;s fast. The major con is that it&rsquo;s hard to use. Another con is that you actually need access to multi-node compute resources. And given that I have spent the last decade working in supercomputing, I sometimes forget that not everyone has the kinds of resources lying around that I do.</p>
+<p>The researcher wasn&rsquo;t excited about either option: we couldn&rsquo;t move to a new resource, and they didn&rsquo;t want to orchestrate an entirely new workflow. But there is another possibility: reducing precision from double to float (64-bit to 32-bit). This will basically cut the problem size in half, at the cost of potentially worse numerical estimates (depending on how many decimal places you actually need). My belief is that for statistics in particular, float is almost always good enough (fight me). At any rate, this made the researcher&rsquo;s problem just barely fit in memory and seemed like a good enough compromise.</p>
+<p>For this, we can use the <a href="https://cran.r-project.org/web/packages/float/index.html">float package</a>. When memory is really tight (as in this case), we need to be conscious about our copies. Here the dataset isn&rsquo;t the major memory consumer, but it&rsquo;s just big enough to be annoying when we need to compute the final crossproducts matrix. So we&rsquo;ll be dropping objects as we go. And throughout, we&rsquo;ll assume you have your data stored in the object named <code>df</code>.</p>
+<p>So this is a little ugly, but we can do this as follows:</p>
+<div class="highlight"><pre style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-r" data-lang="r"><span style="color:#a6e22e">library</span>(float)
+
+x <span style="color:#f92672">=</span> <span style="color:#a6e22e">as.matrix</span>(df)
+<span style="color:#a6e22e">rm</span>(df)
+<span style="color:#a6e22e">invisible</span>(<span style="color:#a6e22e">gc</span>())
+
+x_fl <span style="color:#f92672">=</span> <span style="color:#a6e22e">fl</span>(x)
+<span style="color:#a6e22e">rm</span>(x)
+<span style="color:#a6e22e">invisible</span>(<span style="color:#a6e22e">gc</span>())
+
+s <span style="color:#f92672">=</span> <span style="color:#a6e22e">scale</span>(x_fl, <span style="color:#66d9ef">TRUE</span>, <span style="color:#66d9ef">TRUE</span>)
+co <span style="color:#f92672">=</span> <span style="color:#a6e22e">tcrossprod</span>(s) <span style="color:#f92672">/</span> <span style="color:#a6e22e">fl</span>(<span style="color:#a6e22e">max</span>(<span style="color:#ae81ff">1L</span>, <span style="color:#a6e22e">nrow</span>(x)<span style="color:#ae81ff">-1</span>))
+</code></pre></div><p>And voila, a correlation matrix.</p>
+<p>But unfortunately, that wasn&rsquo;t good enough. Because although this worked, what the researcher <em>really</em> wanted was the eigenvalues of this matrix. Yeah, that&rsquo;s a problem, because R will always operate on copies when data has to be modified. And when you give R&rsquo;s <code>eigen()</code> a symmetric matrix (as is the case here), it will eventually call out to LAPACK&rsquo;s <code>syevr()</code> function (specifically, <code>ssyevr()</code> in this case). That modifies the data, so R will try to copy that giant matrix that we could only barely fit in memory.</p>
+<p>Now if you insist on this route for some reason, you can actually do this with fmlr. This is because fmlr (and the core C++ library fml) is designed to live just barely above the underlying linear algebra frameworks. It&rsquo;s high level enough to be easy to use, but low level enough to be performant in a way that basically no other library that I&rsquo;m aware of can credibly claim to be (fight me).</p>
+<p>fmlr will not make modifications to data in a copy &mdash; if you don&rsquo;t like that, make your own damn copy. So this isn&rsquo;t going to win any beauty pageants, but it works:</p>
+<div class="highlight"><pre style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-r" data-lang="r"><span style="color:#a6e22e">library</span>(fmlr)
+
+x <span style="color:#f92672">=</span> <span style="color:#a6e22e">as.matrix</span>(df)
+<span style="color:#a6e22e">rm</span>(df)
+<span style="color:#a6e22e">invisible</span>(<span style="color:#a6e22e">gc</span>())
+
+x_fl <span style="color:#f92672">=</span> <span style="color:#a6e22e">fl</span>(x)
+<span style="color:#a6e22e">rm</span>(x)
+<span style="color:#a6e22e">invisible</span>(<span style="color:#a6e22e">gc</span>())
+
+s <span style="color:#f92672">=</span> <span style="color:#a6e22e">as_cpumat</span>(x_fl, copy<span style="color:#f92672">=</span><span style="color:#66d9ef">FALSE</span>)
+
+<span style="color:#a6e22e">dimops_scale</span>(<span style="color:#66d9ef">TRUE</span>, <span style="color:#66d9ef">TRUE</span>, s)
+alpha <span style="color:#f92672">=</span> <span style="color:#a6e22e">max</span>(<span style="color:#ae81ff">1</span>, s<span style="color:#f92672">$</span><span style="color:#a6e22e">nrows</span>()<span style="color:#ae81ff">-1</span>)
+co <span style="color:#f92672">=</span> <span style="color:#a6e22e">linalg_tcrossprod</span>(alpha, s)
+
+<span style="color:#a6e22e">rm</span>(s)
+<span style="color:#a6e22e">rm</span>(x_fl)
+<span style="color:#a6e22e">invisible</span>(<span style="color:#a6e22e">gc</span>())
+
+vals_fl <span style="color:#f92672">=</span> <span style="color:#a6e22e">cpuvec</span>(type<span style="color:#f92672">=</span><span style="color:#e6db74">&#34;float&#34;</span>)
+<span style="color:#a6e22e">linalg_eigen_sym</span>(co, vals_fl)
+vals <span style="color:#f92672">=</span> <span style="color:#a6e22e">dbl</span>(<span style="color:#a6e22e">sqrt</span>(vals_fl<span style="color:#f92672">$</span><span style="color:#a6e22e">to_robj</span>()))
+vals
+</code></pre></div><p>Yeah I get it, wouldn&rsquo;t it be nice if we could just do <code>eigen(tcrossprod(x))</code>. That sure is a lot less typing. But the whole point is that we can&rsquo;t do that.</p>
+<p><em>Or can we?</em></p>
+<p>In an <a href="https://fml-fam.github.io/blog/2020/07/03/matrix-factorizations-for-data-analysis/">earlier post</a> I outlined the details of the well-known connection between the square of the singular values of a matrix and the eigenvalues its derived crossproducts matrices. I won&rsquo;t go through it all again here, but basically we can solve the problem like this:</p>
+<div class="highlight"><pre style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-r" data-lang="r"><span style="color:#a6e22e">sqrt</span>(<span style="color:#a6e22e">svd</span>(df, nu<span style="color:#f92672">=</span><span style="color:#ae81ff">0</span>, nv<span style="color:#f92672">=</span><span style="color:#ae81ff">0</span>)<span style="color:#f92672">$</span>d)
+</code></pre></div><p>And this can be done pretty quickly computationally, and it doesn&rsquo;t really take all that much memory. The cost is mostly in two copies of the data: one going from the dataframe to a numeric matrix, and the second created before the data is modified by the LAPACK <code>dgesdd()</code> driver. There is some additional overhead for workspace for the LAPACK function, but it&rsquo;s not substantial.</p>
+<p>But if you were still highly memory constrained, you could get by with a single copy, and push the calculation down to float as before:</p>
+<div class="highlight"><pre style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-r" data-lang="r"><span style="color:#a6e22e">library</span>(float)
+
+x <span style="color:#f92672">=</span> <span style="color:#a6e22e">as.matrix</span>(df)
+<span style="color:#a6e22e">rm</span>(df)
+<span style="color:#a6e22e">invisible</span>(<span style="color:#a6e22e">gc</span>())
+
+x_fl <span style="color:#f92672">=</span> <span style="color:#a6e22e">fl</span>(x)
+<span style="color:#a6e22e">rm</span>(x)
+<span style="color:#a6e22e">invisible</span>(<span style="color:#a6e22e">gc</span>())
+
+<span style="color:#a6e22e">dbl</span>(<span style="color:#a6e22e">sqrt</span>(<span style="color:#a6e22e">svd</span>(x_fl, nu<span style="color:#f92672">=</span><span style="color:#ae81ff">0</span>, nv<span style="color:#f92672">=</span><span style="color:#ae81ff">0</span>)<span style="color:#f92672">$</span>d))
+</code></pre></div><p>And if even that is pushing the limits, you can avoid the extra copy using fmlr as before:</p>
+<div class="highlight"><pre style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-r" data-lang="r"><span style="color:#a6e22e">library</span>(fmlr)
+
+x <span style="color:#f92672">=</span> <span style="color:#a6e22e">as.matrix</span>(df)
+<span style="color:#a6e22e">rm</span>(df)
+<span style="color:#a6e22e">invisible</span>(<span style="color:#a6e22e">gc</span>())
+
+x_fl <span style="color:#f92672">=</span> <span style="color:#a6e22e">fl</span>(x)
+<span style="color:#a6e22e">rm</span>(x)
+<span style="color:#a6e22e">invisible</span>(<span style="color:#a6e22e">gc</span>())
+
+s <span style="color:#f92672">=</span> <span style="color:#a6e22e">as_cpumat</span>(x_fl, copy<span style="color:#f92672">=</span><span style="color:#66d9ef">FALSE</span>)
+
+v <span style="color:#f92672">=</span> <span style="color:#a6e22e">cpuvec</span>(type<span style="color:#f92672">=</span><span style="color:#e6db74">&#34;float&#34;</span>)
+<span style="color:#a6e22e">linalg_svd</span>(s, v)
+
+<span style="color:#a6e22e">rm</span>(s)
+<span style="color:#a6e22e">rm</span>(x_fl)
+<span style="color:#a6e22e">invisible</span>(<span style="color:#a6e22e">gc</span>())
+
+<span style="color:#a6e22e">dbl</span>(<span style="color:#a6e22e">sqrt</span>(v<span style="color:#f92672">$</span><span style="color:#a6e22e">to_robj</span>()))
+</code></pre></div>
+</div>
+
+<br>
+<p>
+<a href="/blog/2020/07/03/matrix-factorizations-for-data-analysis/">← Matrix Factorizations for Data Analysis</a>&nbsp;
+
+</p>
+<br>
+
+
+<p style="color:grey;font-size:12px"><small>
+© 2020.
+Post content is <a href="http://creativecommons.org/licenses/by-sa/4.0/">CC-BY-SA</a>.
+Source code listings are <a href="http://creativecommons.org/publicdomain/zero/1.0/">CC0</a>.
+</small></p>
+
+<footer>
+  <script type="text/x-mathjax-config">
+    MathJax.Hub.Config({
+      tex2jax: {
+        inlineMath: [ ['$','$'], ["\\(","\\)"] ],
+        processEscapes: true
+      }
+    });
+  </script>
+  <script type="text/javascript" src="https://cdn.mathjax.org/mathjax/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML"></script>
+</footer>
+</body>
+</html>
+
