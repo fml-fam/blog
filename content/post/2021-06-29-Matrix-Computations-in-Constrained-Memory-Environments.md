@@ -5,7 +5,7 @@ tags:
   - r
 ---
 
-Many times in my professional career, a researcher will approach me for help performing some kind of matrix calculation that is getting "expensive" as their data grows. Sometimes the expense is in compute time: it's just taking too long. Recently, someone approached me who didn't care at all how long it took to compute something. Their problem was getting the thing to run within the RAM constraints in their particular computing environment, which they couldn't really deviate from.
+Many times in my professional career, a researcher has approached me for help performing some kind of matrix calculation that is getting "expensive" as their data grows. Sometimes the expense is in compute time: it's just taking too long. Recently, someone approached me who didn't care at all how long it took to compute something. Their problem was getting the thing to run within the RAM constraints in their particular computing environment, which they couldn't really deviate from.
 
 This particular researcher was using R, which shows remarkably good taste on their part. And although I will be using R for the code snippets, the general principles apply to any language.
 
