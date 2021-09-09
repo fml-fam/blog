@@ -1,0 +1,209 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+	<meta charset="utf-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1">
+	
+	<title>A Bit About Checkpoint/Restart</title>
+	
+	<meta name="description" content="">
+	<meta name="image" content="">
+	
+	<meta itemprop="name" content="A Bit About Checkpoint/Restart">
+	<meta itemprop="description" content="">
+	<meta itemprop="image" content="">
+	
+	<meta name="og:title" content="A Bit About Checkpoint/Restart">
+	<meta name="og:description" content="">
+	
+	<meta name="og:url" content="https://fml-fam.github.io/blog/2021/09/09/a-bit-about-checkpoint/restart/">
+	<meta name="og:site_name" content="A Bit About Checkpoint/Restart">
+	<meta name="og:type" content="article">
+	
+	<meta name="article:author" content="wrathematics">
+	<meta name="article:tag" content="r ">
+	<link rel="stylesheet" type="text/css" href="/blog/css/style3.css">
+	<script src="/blog/js/caption.js"></script>
+</head>
+<body>
+
+<header >
+	<a href="/blog" style="float: left;color:#777;"><strong>fml blog</strong>
+	</a>
+	<a href="/blog/index.xml" style="color:#777;float: left;"><strong>
+		&nbsp;
+	<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather feather-rss"><path d="M4 11a9 9 0 0 1 9 9"></path><path d="M4 4a16 16 0 0 1 16 16"></path><circle cx="5" cy="19" r="1"></circle></svg>
+</strong></a>
+<a href="https://fml-fam.github.io/blog/page/about/" style="color:#777;"><strong>About</strong></a>
+
+</header>
+
+
+<script>
+function fadeOut(el) {
+  el.style.opacity = 1;
+
+  var last = +new Date();
+  var tick = function() {
+    el.style.opacity = +el.style.opacity - (new Date() - last) / 80;
+    last = +new Date();
+    
+
+    if (el.style.opacity > 0) {
+      (window.requestAnimationFrame && requestAnimationFrame(tick)) || setTimeout(tick, 16);
+    } else {
+    	el.style.display='none';
+    }
+  };
+
+  tick();
+}
+
+function ready(fn) {
+    if (document.attachEvent ? document.readyState === "complete" : document.readyState !== "loading") {
+        var elements = document.querySelectorAll("img");
+        Array.prototype.forEach.call(elements, function(el, i) {
+            if (el.getAttribute("alt")) {
+                const caption = document.createElement('figcaption');
+                var node = document.createTextNode(el.getAttribute("alt"));
+                caption.appendChild(node);
+                const wrapper = document.createElement('figure');
+                wrapper.className = 'image';
+                el.parentNode.insertBefore(wrapper, el);
+                el.parentNode.removeChild(el);
+                wrapper.appendChild(el);
+                wrapper.appendChild(caption);
+            }
+        });
+
+    } else {
+        document.addEventListener('DOMContentLoaded', fn);
+    }
+}
+window.onload = ready;
+</script>
+
+<div class="content">
+	<h1>A Bit About Checkpoint/Restart <aside><a href="/blog/tags/r/" class="w3-tag">/r</a>&nbsp;&nbsp;&nbsp;</aside></h1>
+  
+  	<p><small><em>Written Thu, September 9, 2021. </em>
+  	</small></p>
+  
+  
+  <p>Checkpoint/Restart (C/R) is a fault tolerance strategy common in high performance computing, but as far as I can tell, almost totally unknown to statistical computing. The basic idea is that you save some/all of the state from your running program in order to be able to resume it in the event that the computation is interrupted.</p>
+<p>Maybe it&rsquo;s storming outside and your power is spotty. Even if you have a laptop or a power supply, how long will that downed tree knock out your power? Perhaps a more typical problem is that you are working on a shared computing resource, like a campus cluster or even a large HPC machine. These kinds of resources typically operate with fixed wall clock run windows. Maybe that window is 24 hours, and you aren&rsquo;t sure that your job will finish in that time. In that case, what do you do? You can potentially go parallel (multicore and/or multi-node) or otherwise make your job run faster. Or maybe you don&rsquo;t feel like doing that for some reason. I&rsquo;m not here to judge you, friend.</p>
+<p>In cases like this, C/R is a good strategy to make sure that your job actually completes some day. But before we get into the details, let&rsquo;s focus our attention on a specific kind of computation. Because if your task runs in 5 seconds, what exactly are you worried about? So probably this is something that is at least potentially long running. And based on my experience supporting users with big statistical compute problems, the majority of these are task-based. So imagine you have many &ldquo;small&rdquo; operations you want to run, rather than one single &ldquo;large&rdquo; operation (what exactly these things mean is a bit ambiguous &ndash; just bear with me).</p>
+<p>Because my target audience is statistical computing folks, I will be giving examples in R. But obviously these concepts apply to every language. For running many-task things in R, you could use <code>lapply()</code> or its many clones. If you want to go parallel, there&rsquo;s the built-in parallel package, which is great. If you want some kind of different interface, I like the <a href="https://cran.r-project.org/web/packages/future/index.html">future package</a>. If you want to go distributed, I think the <a href="https://cran.r-project.org/web/packages/pbdMPI/index.html">pbdMPI package</a> (of which I am a co-author) offers some unique advantages. And there are about 100 other such packages, which all have pros and cons, but all do similar things. And although I will mention some packages I have written at the tail of this article, the point here is not to shill my software. My hope is that more packages implement something like this.</p>
+<p>Ok, so we&rsquo;re going to be saving the state of some kind of computation. We can serialize with R&rsquo;s <code>save()</code> and <code>load()</code>. You may be able to make the I/O faster with some of the recent, boutique packages for serializing R data. And for some applications, this may be very important. But this approach is dependency-free, which I feel is an advantage which often goes underappreciated in the R community.</p>
+<p>There are some caveats worth discussing where this strategy ranges from difficult to impossible to implement. Again, we&rsquo;re focusing for the moment on task parallelism (because that&rsquo;s the easy problem). But let&rsquo;s say you have some really long running, single function evaluation - like some really big matrix operation, fitting a linear model, etc. In this case there may not be much you can do unless you wrote the thing yourself. Some encapsulated compiled code that you call can&rsquo;t really be intercepted mid-evaluation. You may be able to save/load intermittent parts of your overall pipeline, but that&rsquo;s much more ad hoc than what I want to talk about here.</p>
+<p>Another caveat is that some package do custom memory allocation, which R calls &ldquo;external pointers&rdquo;. R does not actually understand these objects; it merely pretends to. Any package that uses these &ndash; for example, the <a href="https://github.com/fml-fam/fmlr">fmlr package</a>, but there are many others &ndash; can&rsquo;t be used for C/R.</p>
+<p>We&rsquo;re finally ready to talk about implementing a C/R strategy for a large, many-task problem. The problem naturally splits into a few distinct pieces:</p>
+<p><strong>Step 0: Notation</strong></p>
+<p>We will mimic the notation of <code>lapply()</code>:</p>
+<ul>
+<li><code>X</code> is our data, some sort of list/vector object</li>
+<li><code>FUN</code> is the function we want to apply to the data</li>
+<li><code>...</code> are the additional arguments to <code>FUN</code></li>
+</ul>
+<p>Some other values we will use:</p>
+<ul>
+<li><code>n</code> is the number of items (<code>length(X)</code>)</li>
+<li><code>checkpoint_file</code> is the file we will save our checkpoint to</li>
+<li><code>checkpoint_freq</code> is the frequency of checkpoint writing</li>
+</ul>
+<p>If we have <code>checkpoint_freq=1</code> then every time a function evaluation completes, we write out to disk. With <code>checkpoint_freq=2</code>, then we write out every other time. This is to balance the cost of computation vs the cost of I/O. This will be somewhat application dependent.</p>
+<p><strong>Step 1: Initialize or Restart</strong></p>
+<p>Let&rsquo;s denote <code>start</code> as the index of the first element yet to be evaluated. If we have not yet started computing, then <code>start=1</code>. If we have evaluated 10 items, then <code>start=11</code>.</p>
+<p>At the beginning of the workflow, we need to see if we are restarting or if we are just starting:</p>
+<div class="highlight"><pre style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-r" data-lang="r"><span style="color:#a6e22e">if </span>(<span style="color:#a6e22e">file.exists</span>(checkpoint_file))
+  <span style="color:#a6e22e">load</span>(file<span style="color:#f92672">=</span>checkpoint_file)
+else
+{
+  start <span style="color:#f92672">=</span> <span style="color:#ae81ff">1L</span>
+  ret <span style="color:#f92672">=</span> <span style="color:#a6e22e">vector</span>(length<span style="color:#f92672">=</span>n, mode<span style="color:#f92672">=</span><span style="color:#e6db74">&#34;list&#34;</span>)
+}
+</code></pre></div><p>The first block merely loads the checkpoint file if we are restarting. The second allocates space for the return object and initializes the index.</p>
+<p><strong>Step 2: Evaluate</strong></p>
+<p>Now for the real work. We need to iterate through the indices applying the function and checkpointing as necessary:</p>
+<div class="highlight"><pre style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-r" data-lang="r"><span style="color:#a6e22e">for </span>(i in start<span style="color:#f92672">:</span>n)
+{
+  ret[[i]] <span style="color:#f92672">=</span> <span style="color:#a6e22e">FUN</span>(X[i], <span style="color:#66d9ef">...</span>)
+  
+  <span style="color:#a6e22e">if </span>(n <span style="color:#f92672">%%</span> checkpoint_freq <span style="color:#f92672">==</span> <span style="color:#ae81ff">0</span>)
+  {
+    start <span style="color:#f92672">=</span> i<span style="color:#ae81ff">+1L</span>
+    <span style="color:#a6e22e">save</span>(start, ret, file<span style="color:#f92672">=</span>checkpoint_file)
+  }
+}
+</code></pre></div><p>If you understand the R language and have followed so far, I feel like this is fairly straightforward. If you feel like &ldquo;this isn&rsquo;t really that complicated&rdquo;, then I agree and you probably get it.</p>
+<p>As a final wrapup, you can remove the checkpoint file:</p>
+<div class="highlight"><pre style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-r" data-lang="r"><span style="color:#a6e22e">file.remove</span>(checkpoint_file)
+</code></pre></div><p>The net effect of all of this is that <code>ret</code> contains the output that it would if you had run <code>ret = lapply(X, FUN)</code>. There is some minor overhead from bookkeeping. There is potentially major overhead from writing out the checkpoint depending on what is actually being stored in <code>ret</code>. Using a faster serialization method may be helpful, as mentioned before. Another option would be trying to overlap the compute and the I/O using something like <code>parallel::mcparallel()</code> and <code>parallel::mccollect()</code>. Note that this is potentially dangerous.</p>
+<p>All of the above is encapsulated in the <a href="https://github.com/wrathematics/crlapply">crlapply package</a>. The package is available on the <a href="https://hpcran.org/">HPCRAN</a> and can be installed via</p>
+<div class="highlight"><pre style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-r" data-lang="r"><span style="color:#a6e22e">install.packages</span>(<span style="color:#e6db74">&#34;crlapply&#34;</span>, repos<span style="color:#f92672">=</span><span style="color:#e6db74">&#34;https://hpcran.org&#34;</span>)
+</code></pre></div><p>Pilfering the example from the package README, we can see how this actually works in practice. We start with an &ldquo;expensive&rdquo; function. Here all it does is sleep for a bit before returning a square root:</p>
+<div class="highlight"><pre style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-r" data-lang="r">costly <span style="color:#f92672">=</span> <span style="color:#a6e22e">function</span>(x, waittime)
+{
+  <span style="color:#a6e22e">Sys.sleep</span>(waittime)
+  <span style="color:#a6e22e">print</span>(<span style="color:#a6e22e">paste</span>(<span style="color:#e6db74">&#34;iteration:&#34;</span>, x))
+  
+  <span style="color:#a6e22e">sqrt</span>(x)
+}
+</code></pre></div><p>Using the C/R version of <code>lapply()</code> available in the crlapply package, we can evaluate this like so:</p>
+<div class="highlight"><pre style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-r" data-lang="r">ret <span style="color:#f92672">=</span> crlapply<span style="color:#f92672">::</span><span style="color:#a6e22e">crlapply</span>(<span style="color:#ae81ff">1</span><span style="color:#f92672">:</span><span style="color:#ae81ff">10</span>, costly, checkpoint_file<span style="color:#f92672">=</span><span style="color:#e6db74">&#34;/tmp/cr.rdata&#34;</span>, waittime<span style="color:#f92672">=</span><span style="color:#ae81ff">0.5</span>)
+
+<span style="color:#a6e22e">unlist</span>(ret)
+</code></pre></div><p>Say we save this in the file <code>example.r</code>. We can run this in batch and kill it a few times (the printed <code>^C</code> represents Ctrl+C which kills the process).</p>
+<div class="highlight"><pre style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-bash" data-lang="bash">$ Rscript example.r
+<span style="color:#f92672">[</span>1<span style="color:#f92672">]</span> <span style="color:#e6db74">&#34;iteration: 1&#34;</span>
+<span style="color:#f92672">[</span>1<span style="color:#f92672">]</span> <span style="color:#e6db74">&#34;iteration: 2&#34;</span>
+<span style="color:#f92672">[</span>1<span style="color:#f92672">]</span> <span style="color:#e6db74">&#34;iteration: 3&#34;</span>
+<span style="color:#f92672">[</span>1<span style="color:#f92672">]</span> <span style="color:#e6db74">&#34;iteration: 4&#34;</span>
+^C
+$ Rscript example.r
+<span style="color:#f92672">[</span>1<span style="color:#f92672">]</span> <span style="color:#e6db74">&#34;iteration: 5&#34;</span>
+<span style="color:#f92672">[</span>1<span style="color:#f92672">]</span> <span style="color:#e6db74">&#34;iteration: 6&#34;</span>
+<span style="color:#f92672">[</span>1<span style="color:#f92672">]</span> <span style="color:#e6db74">&#34;iteration: 7&#34;</span>
+^C
+$ Rscript example.r
+<span style="color:#f92672">[</span>1<span style="color:#f92672">]</span> <span style="color:#e6db74">&#34;iteration: 8&#34;</span>
+<span style="color:#f92672">[</span>1<span style="color:#f92672">]</span> <span style="color:#e6db74">&#34;iteration: 9&#34;</span>
+<span style="color:#f92672">[</span>1<span style="color:#f92672">]</span> <span style="color:#e6db74">&#34;iteration: 10&#34;</span>
+</code></pre></div><p>Notice that indeed, each time we restart the script, it picks up right where it left off. The final line of the script, when executed, will produce the following:</p>
+<pre><code>unlist(ret)
+##  [1] 1.000000 1.414214 1.732051 2.000000 2.236068 2.449490 2.645751
+##  [8] 2.828427 3.000000 3.162278
+</code></pre><p>So what about parallelism? I have gotten a suprising amount of mileage out of the <a href="https://github.com/RBigData/tasktools">tasktools package</a>, which uses MPI to solve this problem. The package is available on the <a href="https://hpcran.org/">HPCRAN</a> and assuming you have a system installation of MPI available, it can be installed via</p>
+<div class="highlight"><pre style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-r" data-lang="r"><span style="color:#a6e22e">install.packages</span>(<span style="color:#e6db74">&#34;tasktools&#34;</span>, repos<span style="color:#f92672">=</span><span style="color:#a6e22e">c</span>(<span style="color:#e6db74">&#34;https://hpcran.org&#34;</span>, <span style="color:#e6db74">&#34;https://cran.rstudio.com&#34;</span>))
+</code></pre></div><p>It is meant to be used in batch with <a href="https://en.wikipedia.org/wiki/SPMD">SPMD style programming</a>. I don&rsquo;t really want to get into what this means right now, but I may in a future post. My hope is that others will begin utilizing these strategies in their various wrappers around <code>lapply()</code> and <code>parallel::mclapply()</code>.</p>
+
+</div>
+
+<br>
+<p>
+<a href="/blog/2021/06/29/matrix-computations-in-constrained-memory-environments/">← Matrix Computations in Constrained Memory Environments</a>&nbsp;
+
+</p>
+<br>
+
+
+<p style="color:grey;font-size:12px"><small>
+© 2020-2021.
+Post content is <a href="http://creativecommons.org/licenses/by-sa/4.0/">CC-BY-SA</a>.
+Source code listings are <a href="http://creativecommons.org/publicdomain/zero/1.0/">CC0</a>.
+</small></p>
+
+<footer>
+  <script type="text/x-mathjax-config">
+    MathJax.Hub.Config({
+      tex2jax: {
+        inlineMath: [ ['$','$'], ["\\(","\\)"] ],
+        processEscapes: true
+      }
+    });
+  </script>
+  <script type="text/javascript" src="https://cdn.mathjax.org/mathjax/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML"></script>
+</footer>
+</body>
+</html>
+

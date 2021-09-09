@@ -7,10 +7,20 @@
     <generator>Hugo -- gohugo.io</generator>
     <language>en-us</language>
     <copyright>This work is licensed under a Creative Commons Attribution-ShareAlike 4.0 International License.</copyright>
-    <lastBuildDate>Tue, 29 Jun 2021 00:00:00 +0000</lastBuildDate>
+    <lastBuildDate>Thu, 09 Sep 2021 00:00:00 +0000</lastBuildDate>
     
 	<atom:link href="https://fml-fam.github.io/blog/tags/r/index.xml" rel="self" type="application/rss+xml" />
     
+    
+    <item>
+      <title>A Bit About Checkpoint/Restart</title>
+      <link>https://fml-fam.github.io/blog/2021/09/09/a-bit-about-checkpoint/restart/</link>
+      <pubDate>Thu, 09 Sep 2021 00:00:00 +0000</pubDate>
+      
+      <guid>https://fml-fam.github.io/blog/2021/09/09/a-bit-about-checkpoint/restart/</guid>
+      <description>Checkpoint/Restart (C/R) is a fault tolerance strategy common in high performance computing, but as far as I can tell, almost totally unknown to statistical computing. The basic idea is that you save some/all of the state from your running program in order to be able to resume it in the event that the computation is interrupted.
+Maybe it&amp;rsquo;s storming outside and your power is spotty. Even if you have a laptop or a power supply, how long will that downed tree knock out your power?</description>
+    </item>
     
     <item>
       <title>Matrix Computations in Constrained Memory Environments</title>

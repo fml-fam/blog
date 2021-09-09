@@ -6,10 +6,105 @@
     <generator>Hugo -- gohugo.io</generator>
     <language>en-us</language>
     <copyright>This work is licensed under a Creative Commons Attribution-ShareAlike 4.0 International License.</copyright>
-    <lastBuildDate>Tue, 29 Jun 2021 00:00:00 +0000</lastBuildDate>
+    <lastBuildDate>Thu, 09 Sep 2021 00:00:00 +0000</lastBuildDate>
     
         <atom:link href="https://fml-fam.github.io/blog/post/index.xml" rel="self" type="application/rss+xml" />
     
+    
+    <item>
+      <title>A Bit About Checkpoint/Restart</title>
+      <link>https://fml-fam.github.io/blog/2021/09/09/a-bit-about-checkpoint/restart/</link>
+      <pubDate>Thu, 09 Sep 2021 00:00:00 +0000</pubDate>
+      
+      <guid>https://fml-fam.github.io/blog/2021/09/09/a-bit-about-checkpoint/restart/</guid>
+      <description>&lt;p&gt;Checkpoint/Restart (C/R) is a fault tolerance strategy common in high performance computing, but as far as I can tell, almost totally unknown to statistical computing. The basic idea is that you save some/all of the state from your running program in order to be able to resume it in the event that the computation is interrupted.&lt;/p&gt;
+&lt;p&gt;Maybe it&amp;rsquo;s storming outside and your power is spotty. Even if you have a laptop or a power supply, how long will that downed tree knock out your power? Perhaps a more typical problem is that you are working on a shared computing resource, like a campus cluster or even a large HPC machine. These kinds of resources typically operate with fixed wall clock run windows. Maybe that window is 24 hours, and you aren&amp;rsquo;t sure that your job will finish in that time. In that case, what do you do? You can potentially go parallel (multicore and/or multi-node) or otherwise make your job run faster. Or maybe you don&amp;rsquo;t feel like doing that for some reason. I&amp;rsquo;m not here to judge you, friend.&lt;/p&gt;
+&lt;p&gt;In cases like this, C/R is a good strategy to make sure that your job actually completes some day. But before we get into the details, let&amp;rsquo;s focus our attention on a specific kind of computation. Because if your task runs in 5 seconds, what exactly are you worried about? So probably this is something that is at least potentially long running. And based on my experience supporting users with big statistical compute problems, the majority of these are task-based. So imagine you have many &amp;ldquo;small&amp;rdquo; operations you want to run, rather than one single &amp;ldquo;large&amp;rdquo; operation (what exactly these things mean is a bit ambiguous &amp;ndash; just bear with me).&lt;/p&gt;
+&lt;p&gt;Because my target audience is statistical computing folks, I will be giving examples in R. But obviously these concepts apply to every language. For running many-task things in R, you could use &lt;code&gt;lapply()&lt;/code&gt; or its many clones. If you want to go parallel, there&amp;rsquo;s the built-in parallel package, which is great. If you want some kind of different interface, I like the &lt;a href=&#34;https://cran.r-project.org/web/packages/future/index.html&#34;&gt;future package&lt;/a&gt;. If you want to go distributed, I think the &lt;a href=&#34;https://cran.r-project.org/web/packages/pbdMPI/index.html&#34;&gt;pbdMPI package&lt;/a&gt; (of which I am a co-author) offers some unique advantages. And there are about 100 other such packages, which all have pros and cons, but all do similar things. And although I will mention some packages I have written at the tail of this article, the point here is not to shill my software. My hope is that more packages implement something like this.&lt;/p&gt;
+&lt;p&gt;Ok, so we&amp;rsquo;re going to be saving the state of some kind of computation. We can serialize with R&amp;rsquo;s &lt;code&gt;save()&lt;/code&gt; and &lt;code&gt;load()&lt;/code&gt;. You may be able to make the I/O faster with some of the recent, boutique packages for serializing R data. And for some applications, this may be very important. But this approach is dependency-free, which I feel is an advantage which often goes underappreciated in the R community.&lt;/p&gt;
+&lt;p&gt;There are some caveats worth discussing where this strategy ranges from difficult to impossible to implement. Again, we&amp;rsquo;re focusing for the moment on task parallelism (because that&amp;rsquo;s the easy problem). But let&amp;rsquo;s say you have some really long running, single function evaluation - like some really big matrix operation, fitting a linear model, etc. In this case there may not be much you can do unless you wrote the thing yourself. Some encapsulated compiled code that you call can&amp;rsquo;t really be intercepted mid-evaluation. You may be able to save/load intermittent parts of your overall pipeline, but that&amp;rsquo;s much more ad hoc than what I want to talk about here.&lt;/p&gt;
+&lt;p&gt;Another caveat is that some package do custom memory allocation, which R calls &amp;ldquo;external pointers&amp;rdquo;. R does not actually understand these objects; it merely pretends to. Any package that uses these &amp;ndash; for example, the &lt;a href=&#34;https://github.com/fml-fam/fmlr&#34;&gt;fmlr package&lt;/a&gt;, but there are many others &amp;ndash; can&amp;rsquo;t be used for C/R.&lt;/p&gt;
+&lt;p&gt;We&amp;rsquo;re finally ready to talk about implementing a C/R strategy for a large, many-task problem. The problem naturally splits into a few distinct pieces:&lt;/p&gt;
+&lt;p&gt;&lt;strong&gt;Step 0: Notation&lt;/strong&gt;&lt;/p&gt;
+&lt;p&gt;We will mimic the notation of &lt;code&gt;lapply()&lt;/code&gt;:&lt;/p&gt;
+&lt;ul&gt;
+&lt;li&gt;&lt;code&gt;X&lt;/code&gt; is our data, some sort of list/vector object&lt;/li&gt;
+&lt;li&gt;&lt;code&gt;FUN&lt;/code&gt; is the function we want to apply to the data&lt;/li&gt;
+&lt;li&gt;&lt;code&gt;...&lt;/code&gt; are the additional arguments to &lt;code&gt;FUN&lt;/code&gt;&lt;/li&gt;
+&lt;/ul&gt;
+&lt;p&gt;Some other values we will use:&lt;/p&gt;
+&lt;ul&gt;
+&lt;li&gt;&lt;code&gt;n&lt;/code&gt; is the number of items (&lt;code&gt;length(X)&lt;/code&gt;)&lt;/li&gt;
+&lt;li&gt;&lt;code&gt;checkpoint_file&lt;/code&gt; is the file we will save our checkpoint to&lt;/li&gt;
+&lt;li&gt;&lt;code&gt;checkpoint_freq&lt;/code&gt; is the frequency of checkpoint writing&lt;/li&gt;
+&lt;/ul&gt;
+&lt;p&gt;If we have &lt;code&gt;checkpoint_freq=1&lt;/code&gt; then every time a function evaluation completes, we write out to disk. With &lt;code&gt;checkpoint_freq=2&lt;/code&gt;, then we write out every other time. This is to balance the cost of computation vs the cost of I/O. This will be somewhat application dependent.&lt;/p&gt;
+&lt;p&gt;&lt;strong&gt;Step 1: Initialize or Restart&lt;/strong&gt;&lt;/p&gt;
+&lt;p&gt;Let&amp;rsquo;s denote &lt;code&gt;start&lt;/code&gt; as the index of the first element yet to be evaluated. If we have not yet started computing, then &lt;code&gt;start=1&lt;/code&gt;. If we have evaluated 10 items, then &lt;code&gt;start=11&lt;/code&gt;.&lt;/p&gt;
+&lt;p&gt;At the beginning of the workflow, we need to see if we are restarting or if we are just starting:&lt;/p&gt;
+&lt;div class=&#34;highlight&#34;&gt;&lt;pre style=&#34;color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4&#34;&gt;&lt;code class=&#34;language-r&#34; data-lang=&#34;r&#34;&gt;&lt;span style=&#34;color:#a6e22e&#34;&gt;if &lt;/span&gt;(&lt;span style=&#34;color:#a6e22e&#34;&gt;file.exists&lt;/span&gt;(checkpoint_file))
+  &lt;span style=&#34;color:#a6e22e&#34;&gt;load&lt;/span&gt;(file&lt;span style=&#34;color:#f92672&#34;&gt;=&lt;/span&gt;checkpoint_file)
+else
+{
+  start &lt;span style=&#34;color:#f92672&#34;&gt;=&lt;/span&gt; &lt;span style=&#34;color:#ae81ff&#34;&gt;1L&lt;/span&gt;
+  ret &lt;span style=&#34;color:#f92672&#34;&gt;=&lt;/span&gt; &lt;span style=&#34;color:#a6e22e&#34;&gt;vector&lt;/span&gt;(length&lt;span style=&#34;color:#f92672&#34;&gt;=&lt;/span&gt;n, mode&lt;span style=&#34;color:#f92672&#34;&gt;=&lt;/span&gt;&lt;span style=&#34;color:#e6db74&#34;&gt;&amp;#34;list&amp;#34;&lt;/span&gt;)
+}
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;p&gt;The first block merely loads the checkpoint file if we are restarting. The second allocates space for the return object and initializes the index.&lt;/p&gt;
+&lt;p&gt;&lt;strong&gt;Step 2: Evaluate&lt;/strong&gt;&lt;/p&gt;
+&lt;p&gt;Now for the real work. We need to iterate through the indices applying the function and checkpointing as necessary:&lt;/p&gt;
+&lt;div class=&#34;highlight&#34;&gt;&lt;pre style=&#34;color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4&#34;&gt;&lt;code class=&#34;language-r&#34; data-lang=&#34;r&#34;&gt;&lt;span style=&#34;color:#a6e22e&#34;&gt;for &lt;/span&gt;(i in start&lt;span style=&#34;color:#f92672&#34;&gt;:&lt;/span&gt;n)
+{
+  ret[[i]] &lt;span style=&#34;color:#f92672&#34;&gt;=&lt;/span&gt; &lt;span style=&#34;color:#a6e22e&#34;&gt;FUN&lt;/span&gt;(X[i], &lt;span style=&#34;color:#66d9ef&#34;&gt;...&lt;/span&gt;)
+  
+  &lt;span style=&#34;color:#a6e22e&#34;&gt;if &lt;/span&gt;(n &lt;span style=&#34;color:#f92672&#34;&gt;%%&lt;/span&gt; checkpoint_freq &lt;span style=&#34;color:#f92672&#34;&gt;==&lt;/span&gt; &lt;span style=&#34;color:#ae81ff&#34;&gt;0&lt;/span&gt;)
+  {
+    start &lt;span style=&#34;color:#f92672&#34;&gt;=&lt;/span&gt; i&lt;span style=&#34;color:#ae81ff&#34;&gt;+1L&lt;/span&gt;
+    &lt;span style=&#34;color:#a6e22e&#34;&gt;save&lt;/span&gt;(start, ret, file&lt;span style=&#34;color:#f92672&#34;&gt;=&lt;/span&gt;checkpoint_file)
+  }
+}
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;p&gt;If you understand the R language and have followed so far, I feel like this is fairly straightforward. If you feel like &amp;ldquo;this isn&amp;rsquo;t really that complicated&amp;rdquo;, then I agree and you probably get it.&lt;/p&gt;
+&lt;p&gt;As a final wrapup, you can remove the checkpoint file:&lt;/p&gt;
+&lt;div class=&#34;highlight&#34;&gt;&lt;pre style=&#34;color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4&#34;&gt;&lt;code class=&#34;language-r&#34; data-lang=&#34;r&#34;&gt;&lt;span style=&#34;color:#a6e22e&#34;&gt;file.remove&lt;/span&gt;(checkpoint_file)
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;p&gt;The net effect of all of this is that &lt;code&gt;ret&lt;/code&gt; contains the output that it would if you had run &lt;code&gt;ret = lapply(X, FUN)&lt;/code&gt;. There is some minor overhead from bookkeeping. There is potentially major overhead from writing out the checkpoint depending on what is actually being stored in &lt;code&gt;ret&lt;/code&gt;. Using a faster serialization method may be helpful, as mentioned before. Another option would be trying to overlap the compute and the I/O using something like &lt;code&gt;parallel::mcparallel()&lt;/code&gt; and &lt;code&gt;parallel::mccollect()&lt;/code&gt;. Note that this is potentially dangerous.&lt;/p&gt;
+&lt;p&gt;All of the above is encapsulated in the &lt;a href=&#34;https://github.com/wrathematics/crlapply&#34;&gt;crlapply package&lt;/a&gt;. The package is available on the &lt;a href=&#34;https://hpcran.org/&#34;&gt;HPCRAN&lt;/a&gt; and can be installed via&lt;/p&gt;
+&lt;div class=&#34;highlight&#34;&gt;&lt;pre style=&#34;color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4&#34;&gt;&lt;code class=&#34;language-r&#34; data-lang=&#34;r&#34;&gt;&lt;span style=&#34;color:#a6e22e&#34;&gt;install.packages&lt;/span&gt;(&lt;span style=&#34;color:#e6db74&#34;&gt;&amp;#34;crlapply&amp;#34;&lt;/span&gt;, repos&lt;span style=&#34;color:#f92672&#34;&gt;=&lt;/span&gt;&lt;span style=&#34;color:#e6db74&#34;&gt;&amp;#34;https://hpcran.org&amp;#34;&lt;/span&gt;)
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;p&gt;Pilfering the example from the package README, we can see how this actually works in practice. We start with an &amp;ldquo;expensive&amp;rdquo; function. Here all it does is sleep for a bit before returning a square root:&lt;/p&gt;
+&lt;div class=&#34;highlight&#34;&gt;&lt;pre style=&#34;color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4&#34;&gt;&lt;code class=&#34;language-r&#34; data-lang=&#34;r&#34;&gt;costly &lt;span style=&#34;color:#f92672&#34;&gt;=&lt;/span&gt; &lt;span style=&#34;color:#a6e22e&#34;&gt;function&lt;/span&gt;(x, waittime)
+{
+  &lt;span style=&#34;color:#a6e22e&#34;&gt;Sys.sleep&lt;/span&gt;(waittime)
+  &lt;span style=&#34;color:#a6e22e&#34;&gt;print&lt;/span&gt;(&lt;span style=&#34;color:#a6e22e&#34;&gt;paste&lt;/span&gt;(&lt;span style=&#34;color:#e6db74&#34;&gt;&amp;#34;iteration:&amp;#34;&lt;/span&gt;, x))
+  
+  &lt;span style=&#34;color:#a6e22e&#34;&gt;sqrt&lt;/span&gt;(x)
+}
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;p&gt;Using the C/R version of &lt;code&gt;lapply()&lt;/code&gt; available in the crlapply package, we can evaluate this like so:&lt;/p&gt;
+&lt;div class=&#34;highlight&#34;&gt;&lt;pre style=&#34;color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4&#34;&gt;&lt;code class=&#34;language-r&#34; data-lang=&#34;r&#34;&gt;ret &lt;span style=&#34;color:#f92672&#34;&gt;=&lt;/span&gt; crlapply&lt;span style=&#34;color:#f92672&#34;&gt;::&lt;/span&gt;&lt;span style=&#34;color:#a6e22e&#34;&gt;crlapply&lt;/span&gt;(&lt;span style=&#34;color:#ae81ff&#34;&gt;1&lt;/span&gt;&lt;span style=&#34;color:#f92672&#34;&gt;:&lt;/span&gt;&lt;span style=&#34;color:#ae81ff&#34;&gt;10&lt;/span&gt;, costly, checkpoint_file&lt;span style=&#34;color:#f92672&#34;&gt;=&lt;/span&gt;&lt;span style=&#34;color:#e6db74&#34;&gt;&amp;#34;/tmp/cr.rdata&amp;#34;&lt;/span&gt;, waittime&lt;span style=&#34;color:#f92672&#34;&gt;=&lt;/span&gt;&lt;span style=&#34;color:#ae81ff&#34;&gt;0.5&lt;/span&gt;)
+
+&lt;span style=&#34;color:#a6e22e&#34;&gt;unlist&lt;/span&gt;(ret)
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;p&gt;Say we save this in the file &lt;code&gt;example.r&lt;/code&gt;. We can run this in batch and kill it a few times (the printed &lt;code&gt;^C&lt;/code&gt; represents Ctrl+C which kills the process).&lt;/p&gt;
+&lt;div class=&#34;highlight&#34;&gt;&lt;pre style=&#34;color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4&#34;&gt;&lt;code class=&#34;language-bash&#34; data-lang=&#34;bash&#34;&gt;$ Rscript example.r
+&lt;span style=&#34;color:#f92672&#34;&gt;[&lt;/span&gt;1&lt;span style=&#34;color:#f92672&#34;&gt;]&lt;/span&gt; &lt;span style=&#34;color:#e6db74&#34;&gt;&amp;#34;iteration: 1&amp;#34;&lt;/span&gt;
+&lt;span style=&#34;color:#f92672&#34;&gt;[&lt;/span&gt;1&lt;span style=&#34;color:#f92672&#34;&gt;]&lt;/span&gt; &lt;span style=&#34;color:#e6db74&#34;&gt;&amp;#34;iteration: 2&amp;#34;&lt;/span&gt;
+&lt;span style=&#34;color:#f92672&#34;&gt;[&lt;/span&gt;1&lt;span style=&#34;color:#f92672&#34;&gt;]&lt;/span&gt; &lt;span style=&#34;color:#e6db74&#34;&gt;&amp;#34;iteration: 3&amp;#34;&lt;/span&gt;
+&lt;span style=&#34;color:#f92672&#34;&gt;[&lt;/span&gt;1&lt;span style=&#34;color:#f92672&#34;&gt;]&lt;/span&gt; &lt;span style=&#34;color:#e6db74&#34;&gt;&amp;#34;iteration: 4&amp;#34;&lt;/span&gt;
+^C
+$ Rscript example.r
+&lt;span style=&#34;color:#f92672&#34;&gt;[&lt;/span&gt;1&lt;span style=&#34;color:#f92672&#34;&gt;]&lt;/span&gt; &lt;span style=&#34;color:#e6db74&#34;&gt;&amp;#34;iteration: 5&amp;#34;&lt;/span&gt;
+&lt;span style=&#34;color:#f92672&#34;&gt;[&lt;/span&gt;1&lt;span style=&#34;color:#f92672&#34;&gt;]&lt;/span&gt; &lt;span style=&#34;color:#e6db74&#34;&gt;&amp;#34;iteration: 6&amp;#34;&lt;/span&gt;
+&lt;span style=&#34;color:#f92672&#34;&gt;[&lt;/span&gt;1&lt;span style=&#34;color:#f92672&#34;&gt;]&lt;/span&gt; &lt;span style=&#34;color:#e6db74&#34;&gt;&amp;#34;iteration: 7&amp;#34;&lt;/span&gt;
+^C
+$ Rscript example.r
+&lt;span style=&#34;color:#f92672&#34;&gt;[&lt;/span&gt;1&lt;span style=&#34;color:#f92672&#34;&gt;]&lt;/span&gt; &lt;span style=&#34;color:#e6db74&#34;&gt;&amp;#34;iteration: 8&amp;#34;&lt;/span&gt;
+&lt;span style=&#34;color:#f92672&#34;&gt;[&lt;/span&gt;1&lt;span style=&#34;color:#f92672&#34;&gt;]&lt;/span&gt; &lt;span style=&#34;color:#e6db74&#34;&gt;&amp;#34;iteration: 9&amp;#34;&lt;/span&gt;
+&lt;span style=&#34;color:#f92672&#34;&gt;[&lt;/span&gt;1&lt;span style=&#34;color:#f92672&#34;&gt;]&lt;/span&gt; &lt;span style=&#34;color:#e6db74&#34;&gt;&amp;#34;iteration: 10&amp;#34;&lt;/span&gt;
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;p&gt;Notice that indeed, each time we restart the script, it picks up right where it left off. The final line of the script, when executed, will produce the following:&lt;/p&gt;
+&lt;pre&gt;&lt;code&gt;unlist(ret)
+##  [1] 1.000000 1.414214 1.732051 2.000000 2.236068 2.449490 2.645751
+##  [8] 2.828427 3.000000 3.162278
+&lt;/code&gt;&lt;/pre&gt;&lt;p&gt;So what about parallelism? I have gotten a suprising amount of mileage out of the &lt;a href=&#34;https://github.com/RBigData/tasktools&#34;&gt;tasktools package&lt;/a&gt;, which uses MPI to solve this problem. The package is available on the &lt;a href=&#34;https://hpcran.org/&#34;&gt;HPCRAN&lt;/a&gt; and assuming you have a system installation of MPI available, it can be installed via&lt;/p&gt;
+&lt;div class=&#34;highlight&#34;&gt;&lt;pre style=&#34;color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4&#34;&gt;&lt;code class=&#34;language-r&#34; data-lang=&#34;r&#34;&gt;&lt;span style=&#34;color:#a6e22e&#34;&gt;install.packages&lt;/span&gt;(&lt;span style=&#34;color:#e6db74&#34;&gt;&amp;#34;tasktools&amp;#34;&lt;/span&gt;, repos&lt;span style=&#34;color:#f92672&#34;&gt;=&lt;/span&gt;&lt;span style=&#34;color:#a6e22e&#34;&gt;c&lt;/span&gt;(&lt;span style=&#34;color:#e6db74&#34;&gt;&amp;#34;https://hpcran.org&amp;#34;&lt;/span&gt;, &lt;span style=&#34;color:#e6db74&#34;&gt;&amp;#34;https://cran.rstudio.com&amp;#34;&lt;/span&gt;))
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;p&gt;It is meant to be used in batch with &lt;a href=&#34;https://en.wikipedia.org/wiki/SPMD&#34;&gt;SPMD style programming&lt;/a&gt;. I don&amp;rsquo;t really want to get into what this means right now, but I may in a future post. My hope is that others will begin utilizing these strategies in their various wrappers around &lt;code&gt;lapply()&lt;/code&gt; and &lt;code&gt;parallel::mclapply()&lt;/code&gt;.&lt;/p&gt;
+</description>
+    </item>
     
     <item>
       <title>Matrix Computations in Constrained Memory Environments</title>
