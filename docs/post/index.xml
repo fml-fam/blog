@@ -71,7 +71,7 @@ n &lt;span style=&#34;color:#f92672&#34;&gt;=&lt;/span&gt; &lt;span style=&#34;c
 &lt;span style=&#34;color:#75715e&#34;&gt;##   0.003   0.007   0.011 &lt;/span&gt;
 
 &lt;span style=&#34;color:#a6e22e&#34;&gt;system.time&lt;/span&gt;({
-  h&lt;span style=&#34;color:#f92672&#34;&gt;$&lt;/span&gt;&lt;span style=&#34;color:#a6e22e&#34;&gt;crossprod&lt;/span&gt;(x)
+  h&lt;span style=&#34;color:#f92672&#34;&gt;$&lt;/span&gt;&lt;span style=&#34;color:#a6e22e&#34;&gt;fill_crossprod&lt;/span&gt;(x)
 })
 &lt;span style=&#34;color:#75715e&#34;&gt;##      user    system   elapsed &lt;/span&gt;
 &lt;span style=&#34;color:#75715e&#34;&gt;## 25721.003  1227.089  3375.184 &lt;/span&gt;

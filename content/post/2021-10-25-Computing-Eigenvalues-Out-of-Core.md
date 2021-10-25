@@ -69,7 +69,7 @@ system.time({
 ##   0.003   0.007   0.011 
 
 system.time({
-  h$crossprod(x)
+  h$fill_crossprod(x)
 })
 ##      user    system   elapsed 
 ## 25721.003  1227.089  3375.184 
