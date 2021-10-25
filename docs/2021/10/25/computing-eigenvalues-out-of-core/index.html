@@ -1,0 +1,235 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+	<meta charset="utf-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1">
+	
+	<title>Computing Eigenvalues Out-of-Core</title>
+	
+	<meta name="description" content="">
+	<meta name="image" content="">
+	
+	<meta itemprop="name" content="Computing Eigenvalues Out-of-Core">
+	<meta itemprop="description" content="">
+	<meta itemprop="image" content="">
+	
+	<meta name="og:title" content="Computing Eigenvalues Out-of-Core">
+	<meta name="og:description" content="">
+	
+	<meta name="og:url" content="https://fml-fam.github.io/blog/2021/10/25/computing-eigenvalues-out-of-core/">
+	<meta name="og:site_name" content="Computing Eigenvalues Out-of-Core">
+	<meta name="og:type" content="article">
+	
+	<meta name="article:author" content="wrathematics">
+	<meta name="article:tag" content="math r ">
+	<link rel="stylesheet" type="text/css" href="/blog/css/style3.css">
+	<script src="/blog/js/caption.js"></script>
+</head>
+<body>
+
+<header >
+	<a href="/blog" style="float: left;color:#777;"><strong>fml blog</strong>
+	</a>
+	<a href="/blog/index.xml" style="color:#777;float: left;"><strong>
+		&nbsp;
+	<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather feather-rss"><path d="M4 11a9 9 0 0 1 9 9"></path><path d="M4 4a16 16 0 0 1 16 16"></path><circle cx="5" cy="19" r="1"></circle></svg>
+</strong></a>
+<a href="https://fml-fam.github.io/blog/page/about/" style="color:#777;"><strong>About</strong></a>
+
+</header>
+
+
+<script>
+function fadeOut(el) {
+  el.style.opacity = 1;
+
+  var last = +new Date();
+  var tick = function() {
+    el.style.opacity = +el.style.opacity - (new Date() - last) / 80;
+    last = +new Date();
+    
+
+    if (el.style.opacity > 0) {
+      (window.requestAnimationFrame && requestAnimationFrame(tick)) || setTimeout(tick, 16);
+    } else {
+    	el.style.display='none';
+    }
+  };
+
+  tick();
+}
+
+function ready(fn) {
+    if (document.attachEvent ? document.readyState === "complete" : document.readyState !== "loading") {
+        var elements = document.querySelectorAll("img");
+        Array.prototype.forEach.call(elements, function(el, i) {
+            if (el.getAttribute("alt")) {
+                const caption = document.createElement('figcaption');
+                var node = document.createTextNode(el.getAttribute("alt"));
+                caption.appendChild(node);
+                const wrapper = document.createElement('figure');
+                wrapper.className = 'image';
+                el.parentNode.insertBefore(wrapper, el);
+                el.parentNode.removeChild(el);
+                wrapper.appendChild(el);
+                wrapper.appendChild(caption);
+            }
+        });
+
+    } else {
+        document.addEventListener('DOMContentLoaded', fn);
+    }
+}
+window.onload = ready;
+</script>
+
+<div class="content">
+	<h1>Computing Eigenvalues Out-of-Core <aside><a href="/blog/tags/math/" class="w3-tag">/math</a>&nbsp;&nbsp;&nbsp;<a href="/blog/tags/r/" class="w3-tag">/r</a>&nbsp;&nbsp;&nbsp;</aside></h1>
+  
+  	<p><small><em>Written Mon, October 25, 2021. </em>
+  	</small></p>
+  
+  
+  <p>In an <a href="https://fml-fam.github.io/blog/2020/06/15/svd-via-lanczos-iteration/">earlier post</a>, I discussed how you can compute SVD (and spectral decomposition) via Lanczos Iteration. Several times in that post, I mentioned that the method lends itself well to out-of-core data &mdash; that is, data stored on disk rather than in memory. But I never bothered to actually go into any details. Recently I had the need for an out-of-core eigensolver, and I have implemented it in <a href="https://github.com/wrathematics/hdfmat">this R package</a>. But I would like to describe the details, because assuming you understand the Lanczos part from the earlier article, then this really isn&rsquo;t too complicated.</p>
+<p>I would say that the hard part is working out-of-core. There are many choices for something like this. You can go with some kind of data standard like HDF5 (which is what I did), &ldquo;roll your own&rdquo; with something like <code>fwrite()</code>, or split the difference with some kind of binary xml monstrosity. I&rsquo;m not an I/O specialist so I went the route I felt was easiest, even if it cost me some performance. It&rsquo;s also worth mentioning that I sort of feel like once you make the compromise of working out-of-core that being overly concerned with performance is a bit silly. If you have a giant dataset and performance matters, assuming you&rsquo;re working in open science, you should get access to a compute cluster. There are tons of free resources available.</p>
+<p>For each Lanczos iteration $i$ from $1, \dots, k$ do:</p>
+<ol>
+<li>Compute $v$ scalar by scalar, iterating over the rows $j$ of $A$, with $j = 1, \dots, n$
+<ol>
+<li>Read row $j$ of $A$, denoted $A_j$</li>
+<li>Denote the $i$'th column of $Q$ by $Q^T_i$</li>
+<li>Compute the $j$'th element of $v$ (a scalar) as the dot product $v_j = A_j \cdot Q^T_i$</li>
+</ol>
+</li>
+<li>Proceed as before calculating $alpha$, $v$ updates, etc.</li>
+</ol>
+<p>Some of the formalism obscures how easy this really is. Here it makes the most sense to store $Q$ in column-major storage and $A$ on disk in row-major format. Then you just have to shift your $Q$ array by $n\times i \times \texttt{sizeof}(Q)$ bytes.</p>
+<p>Of course, you don&rsquo;t necessarily have to read rows. You can read whatever blocks you want that your out-of-core storage supports. The bigger the read, the more data you can operate on at a time, which will probably improve the run-time performance. I chose rows because it&rsquo;s easy to understand and implement. See also the above caveats about working out-of-core.</p>
+<p>With an R-like pseudo-code, it might look something like this:</p>
+<div class="highlight"><pre style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-r" data-lang="r"><span style="color:#75715e"># allocate/initialize alpha, beta, q as before</span>
+<span style="color:#75715e"># ...</span>
+<span style="color:#a6e22e">for </span>(i in <span style="color:#ae81ff">1</span><span style="color:#f92672">:</span>k)
+{
+  <span style="color:#a6e22e">for </span>(j in <span style="color:#ae81ff">1</span><span style="color:#f92672">:</span>n)
+  {
+    A_j <span style="color:#f92672">=</span> <span style="color:#a6e22e">read_row</span>(row_offset<span style="color:#f92672">=</span>j)
+    v[j] <span style="color:#f92672">=</span> A_j <span style="color:#f92672">%*%</span> q[, i]
+  }
+  
+  <span style="color:#75715e"># continue as before</span>
+}
+</code></pre></div><p>I have implemented this and a few other operations useful for computing shrink correlation in the aforementioned <a href="https://github.com/wrathematics/hdfmat">hdfmat package</a>. My primary motivation was to make it easy to compute the eigenvalues of large shrink correlation matrices out-of-core, which actually dovetails with another <a href="https://fml-fam.github.io/blog/2021/06/29/matrix-computations-in-constrained-memory-environments/">earlier post</a>.</p>
+<p>The hdfmat package uses HDF5 as the on-disk matrix container. As with basically anything, there are some tradeoffs here. HDF5 is a standard in HPC, so I was already familiar with it. If performance is critical, you could probably do better. But this really is the hill I will die on: if performance is so critical, then why are you working out-of-core in the first place?</p>
+<p>Here&rsquo;s a little benchmark of the package. I used 8 cores of an 8-core AMD processor, and the disk is some garbage SSD that will probably die in 6 months. OpenBLAS is doing most of the hard work. The benchmark computes the crossproduct matrix of a &ldquo;large&rdquo;-ish matrix and then computes various numbers of estimates of the eigenvalues. These are basically the bottlenecks for the shrink correlation thing I mentioned earlier.</p>
+<div class="highlight"><pre style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-r" data-lang="r"><span style="color:#a6e22e">library</span>(hdfmat)
+<span style="color:#a6e22e">set.seed</span>(<span style="color:#ae81ff">1234</span>)
+
+f <span style="color:#f92672">=</span> <span style="color:#a6e22e">tempfile</span>()
+name <span style="color:#f92672">=</span> <span style="color:#e6db74">&#34;mydata&#34;</span>
+type <span style="color:#f92672">=</span> <span style="color:#e6db74">&#34;float&#34;</span>
+
+m <span style="color:#f92672">=</span> <span style="color:#ae81ff">1000</span>
+n <span style="color:#f92672">=</span> <span style="color:#ae81ff">100000</span>
+
+<span style="color:#a6e22e">system.time</span>({
+  x <span style="color:#f92672">=</span> <span style="color:#a6e22e">matrix</span>(<span style="color:#a6e22e">rnorm</span>(m<span style="color:#f92672">*</span>n), m, n)
+})
+<span style="color:#75715e">##    user  system elapsed </span>
+<span style="color:#75715e">##   4.245   0.294   4.539 </span>
+
+<span style="color:#a6e22e">system.time</span>({
+  h <span style="color:#f92672">=</span> hdfmat<span style="color:#f92672">::</span><span style="color:#a6e22e">hdfmat</span>(f, name, n, n, type)
+})
+<span style="color:#75715e">##    user  system elapsed </span>
+<span style="color:#75715e">##   0.003   0.007   0.011 </span>
+
+<span style="color:#a6e22e">system.time</span>({
+  h<span style="color:#f92672">$</span><span style="color:#a6e22e">crossprod</span>(x)
+})
+<span style="color:#75715e">##      user    system   elapsed </span>
+<span style="color:#75715e">## 25721.003  1227.089  3375.184 </span>
+
+<span style="color:#a6e22e">system.time</span>({
+  h<span style="color:#f92672">$</span><span style="color:#a6e22e">eigen</span>(k<span style="color:#f92672">=</span><span style="color:#ae81ff">3</span>)
+})
+<span style="color:#75715e">##    user  system elapsed </span>
+<span style="color:#75715e">## 196.455  21.059  27.211 </span>
+
+<span style="color:#a6e22e">system.time</span>({
+  h<span style="color:#f92672">$</span><span style="color:#a6e22e">eigen</span>(k<span style="color:#f92672">=</span><span style="color:#ae81ff">100</span>)
+})
+<span style="color:#75715e">##     user   system  elapsed </span>
+<span style="color:#75715e">## 6149.752  641.622  849.200 </span>
+
+<span style="color:#a6e22e">system.time</span>({
+  h<span style="color:#f92672">$</span><span style="color:#a6e22e">eigen</span>(k<span style="color:#f92672">=</span><span style="color:#ae81ff">1000</span>)
+})
+<span style="color:#75715e">##      user    system   elapsed </span>
+<span style="color:#75715e">## 61362.140  6363.350  8468.052 </span>
+</code></pre></div><p>When I check the resulting file with <code>du -h</code>, I see:</p>
+<pre><code>38G	rdata.h5
+</code></pre><p>Which is reasonable given the size to store it in-memory is pretty close to that:</p>
+<div class="highlight"><pre style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-r" data-lang="r">memuse<span style="color:#f92672">::</span><span style="color:#a6e22e">howbig</span>(n, n, prefix<span style="color:#f92672">=</span><span style="color:#e6db74">&#34;SI&#34;</span>)<span style="color:#f92672">/</span><span style="color:#ae81ff">2</span>
+<span style="color:#75715e">## 40.000 GB</span>
+</code></pre></div><p>Amusingly, I have enough memory to store that matrix on this workstation, but not enough to store it and compute the eigenvalues with a call to something like <code>eigen()</code>:</p>
+<div class="highlight"><pre style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-r" data-lang="r">memuse<span style="color:#f92672">::</span><span style="color:#a6e22e">Sys.meminfo</span>()
+<span style="color:#75715e">## Totalram:  62.814 GiB </span>
+<span style="color:#75715e">## Freeram:   50.744 GiB </span>
+</code></pre></div><p>That&rsquo;s because <code>eigen()</code> will make a copy of the matrix, and I only have enough room for one on this workstation. However, I can actually compute this using <a href="https://github.com/fml-fam/fmlr">fmlr</a>:</p>
+<div class="highlight"><pre style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-r" data-lang="r"><span style="color:#a6e22e">suppressMessages</span>(<span style="color:#a6e22e">library</span>(fmlr))
+<span style="color:#a6e22e">set.seed</span>(<span style="color:#ae81ff">1234</span>)
+
+m <span style="color:#f92672">=</span> <span style="color:#ae81ff">1000</span>
+n <span style="color:#f92672">=</span> <span style="color:#ae81ff">100000</span>
+
+<span style="color:#a6e22e">system.time</span>({
+  x <span style="color:#f92672">=</span> <span style="color:#a6e22e">cpumat</span>(m, n, type<span style="color:#f92672">=</span><span style="color:#e6db74">&#34;float&#34;</span>)
+  x<span style="color:#f92672">$</span><span style="color:#a6e22e">fill_rnorm</span>()
+})
+<span style="color:#75715e">##  user  system elapsed </span>
+<span style="color:#75715e">## 1.519   0.045   1.565 </span>
+
+<span style="color:#a6e22e">system.time</span>({
+  cp <span style="color:#f92672">=</span> <span style="color:#a6e22e">linalg_crossprod</span>(<span style="color:#ae81ff">1</span>, x)
+})
+<span style="color:#75715e">##    user  system elapsed </span>
+<span style="color:#75715e">## 212.216  10.629  36.144 </span>
+
+<span style="color:#a6e22e">system.time</span>({
+  ev <span style="color:#f92672">=</span> <span style="color:#a6e22e">cpuvec</span>(type<span style="color:#f92672">=</span><span style="color:#e6db74">&#34;float&#34;</span>)
+  <span style="color:#a6e22e">linalg_eigen_sym</span>(x, ev)
+})
+<span style="color:#75715e">##   user  system elapsed </span>
+<span style="color:#75715e">## 40.442   9.524   6.720</span>
+</code></pre></div><p>Which is just <em>a bit</em> faster.</p>
+
+</div>
+
+<br>
+<p>
+<a href="/blog/2021/09/09/a-bit-about-checkpoint/restart/">← A Bit About Checkpoint/Restart</a>&nbsp;
+
+</p>
+<br>
+
+
+<p style="color:grey;font-size:12px"><small>
+© 2020-2021.
+Post content is <a href="http://creativecommons.org/licenses/by-sa/4.0/">CC-BY-SA</a>.
+Source code listings are <a href="http://creativecommons.org/publicdomain/zero/1.0/">CC0</a>.
+</small></p>
+
+<footer>
+  <script type="text/x-mathjax-config">
+    MathJax.Hub.Config({
+      tex2jax: {
+        inlineMath: [ ['$','$'], ["\\(","\\)"] ],
+        processEscapes: true
+      }
+    });
+  </script>
+  <script type="text/javascript" src="https://cdn.mathjax.org/mathjax/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML"></script>
+</footer>
+</body>
+</html>
+

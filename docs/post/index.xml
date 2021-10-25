@@ -6,10 +6,131 @@
     <generator>Hugo -- gohugo.io</generator>
     <language>en-us</language>
     <copyright>This work is licensed under a Creative Commons Attribution-ShareAlike 4.0 International License.</copyright>
-    <lastBuildDate>Thu, 09 Sep 2021 00:00:00 +0000</lastBuildDate>
+    <lastBuildDate>Mon, 25 Oct 2021 00:00:00 +0000</lastBuildDate>
     
         <atom:link href="https://fml-fam.github.io/blog/post/index.xml" rel="self" type="application/rss+xml" />
     
+    
+    <item>
+      <title>Computing Eigenvalues Out-of-Core</title>
+      <link>https://fml-fam.github.io/blog/2021/10/25/computing-eigenvalues-out-of-core/</link>
+      <pubDate>Mon, 25 Oct 2021 00:00:00 +0000</pubDate>
+      
+      <guid>https://fml-fam.github.io/blog/2021/10/25/computing-eigenvalues-out-of-core/</guid>
+      <description>&lt;p&gt;In an &lt;a href=&#34;https://fml-fam.github.io/blog/2020/06/15/svd-via-lanczos-iteration/&#34;&gt;earlier post&lt;/a&gt;, I discussed how you can compute SVD (and spectral decomposition) via Lanczos Iteration. Several times in that post, I mentioned that the method lends itself well to out-of-core data &amp;mdash; that is, data stored on disk rather than in memory. But I never bothered to actually go into any details. Recently I had the need for an out-of-core eigensolver, and I have implemented it in &lt;a href=&#34;https://github.com/wrathematics/hdfmat&#34;&gt;this R package&lt;/a&gt;. But I would like to describe the details, because assuming you understand the Lanczos part from the earlier article, then this really isn&amp;rsquo;t too complicated.&lt;/p&gt;
+&lt;p&gt;I would say that the hard part is working out-of-core. There are many choices for something like this. You can go with some kind of data standard like HDF5 (which is what I did), &amp;ldquo;roll your own&amp;rdquo; with something like &lt;code&gt;fwrite()&lt;/code&gt;, or split the difference with some kind of binary xml monstrosity. I&amp;rsquo;m not an I/O specialist so I went the route I felt was easiest, even if it cost me some performance. It&amp;rsquo;s also worth mentioning that I sort of feel like once you make the compromise of working out-of-core that being overly concerned with performance is a bit silly. If you have a giant dataset and performance matters, assuming you&amp;rsquo;re working in open science, you should get access to a compute cluster. There are tons of free resources available.&lt;/p&gt;
+&lt;p&gt;For each Lanczos iteration $i$ from $1, \dots, k$ do:&lt;/p&gt;
+&lt;ol&gt;
+&lt;li&gt;Compute $v$ scalar by scalar, iterating over the rows $j$ of $A$, with $j = 1, \dots, n$
+&lt;ol&gt;
+&lt;li&gt;Read row $j$ of $A$, denoted $A_j$&lt;/li&gt;
+&lt;li&gt;Denote the $i$&#39;th column of $Q$ by $Q^T_i$&lt;/li&gt;
+&lt;li&gt;Compute the $j$&#39;th element of $v$ (a scalar) as the dot product $v_j = A_j \cdot Q^T_i$&lt;/li&gt;
+&lt;/ol&gt;
+&lt;/li&gt;
+&lt;li&gt;Proceed as before calculating $alpha$, $v$ updates, etc.&lt;/li&gt;
+&lt;/ol&gt;
+&lt;p&gt;Some of the formalism obscures how easy this really is. Here it makes the most sense to store $Q$ in column-major storage and $A$ on disk in row-major format. Then you just have to shift your $Q$ array by $n\times i \times \texttt{sizeof}(Q)$ bytes.&lt;/p&gt;
+&lt;p&gt;Of course, you don&amp;rsquo;t necessarily have to read rows. You can read whatever blocks you want that your out-of-core storage supports. The bigger the read, the more data you can operate on at a time, which will probably improve the run-time performance. I chose rows because it&amp;rsquo;s easy to understand and implement. See also the above caveats about working out-of-core.&lt;/p&gt;
+&lt;p&gt;With an R-like pseudo-code, it might look something like this:&lt;/p&gt;
+&lt;div class=&#34;highlight&#34;&gt;&lt;pre style=&#34;color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4&#34;&gt;&lt;code class=&#34;language-r&#34; data-lang=&#34;r&#34;&gt;&lt;span style=&#34;color:#75715e&#34;&gt;# allocate/initialize alpha, beta, q as before&lt;/span&gt;
+&lt;span style=&#34;color:#75715e&#34;&gt;# ...&lt;/span&gt;
+&lt;span style=&#34;color:#a6e22e&#34;&gt;for &lt;/span&gt;(i in &lt;span style=&#34;color:#ae81ff&#34;&gt;1&lt;/span&gt;&lt;span style=&#34;color:#f92672&#34;&gt;:&lt;/span&gt;k)
+{
+  &lt;span style=&#34;color:#a6e22e&#34;&gt;for &lt;/span&gt;(j in &lt;span style=&#34;color:#ae81ff&#34;&gt;1&lt;/span&gt;&lt;span style=&#34;color:#f92672&#34;&gt;:&lt;/span&gt;n)
+  {
+    A_j &lt;span style=&#34;color:#f92672&#34;&gt;=&lt;/span&gt; &lt;span style=&#34;color:#a6e22e&#34;&gt;read_row&lt;/span&gt;(row_offset&lt;span style=&#34;color:#f92672&#34;&gt;=&lt;/span&gt;j)
+    v[j] &lt;span style=&#34;color:#f92672&#34;&gt;=&lt;/span&gt; A_j &lt;span style=&#34;color:#f92672&#34;&gt;%*%&lt;/span&gt; q[, i]
+  }
+  
+  &lt;span style=&#34;color:#75715e&#34;&gt;# continue as before&lt;/span&gt;
+}
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;p&gt;I have implemented this and a few other operations useful for computing shrink correlation in the aforementioned &lt;a href=&#34;https://github.com/wrathematics/hdfmat&#34;&gt;hdfmat package&lt;/a&gt;. My primary motivation was to make it easy to compute the eigenvalues of large shrink correlation matrices out-of-core, which actually dovetails with another &lt;a href=&#34;https://fml-fam.github.io/blog/2021/06/29/matrix-computations-in-constrained-memory-environments/&#34;&gt;earlier post&lt;/a&gt;.&lt;/p&gt;
+&lt;p&gt;The hdfmat package uses HDF5 as the on-disk matrix container. As with basically anything, there are some tradeoffs here. HDF5 is a standard in HPC, so I was already familiar with it. If performance is critical, you could probably do better. But this really is the hill I will die on: if performance is so critical, then why are you working out-of-core in the first place?&lt;/p&gt;
+&lt;p&gt;Here&amp;rsquo;s a little benchmark of the package. I used 8 cores of an 8-core AMD processor, and the disk is some garbage SSD that will probably die in 6 months. OpenBLAS is doing most of the hard work. The benchmark computes the crossproduct matrix of a &amp;ldquo;large&amp;rdquo;-ish matrix and then computes various numbers of estimates of the eigenvalues. These are basically the bottlenecks for the shrink correlation thing I mentioned earlier.&lt;/p&gt;
+&lt;div class=&#34;highlight&#34;&gt;&lt;pre style=&#34;color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4&#34;&gt;&lt;code class=&#34;language-r&#34; data-lang=&#34;r&#34;&gt;&lt;span style=&#34;color:#a6e22e&#34;&gt;library&lt;/span&gt;(hdfmat)
+&lt;span style=&#34;color:#a6e22e&#34;&gt;set.seed&lt;/span&gt;(&lt;span style=&#34;color:#ae81ff&#34;&gt;1234&lt;/span&gt;)
+
+f &lt;span style=&#34;color:#f92672&#34;&gt;=&lt;/span&gt; &lt;span style=&#34;color:#a6e22e&#34;&gt;tempfile&lt;/span&gt;()
+name &lt;span style=&#34;color:#f92672&#34;&gt;=&lt;/span&gt; &lt;span style=&#34;color:#e6db74&#34;&gt;&amp;#34;mydata&amp;#34;&lt;/span&gt;
+type &lt;span style=&#34;color:#f92672&#34;&gt;=&lt;/span&gt; &lt;span style=&#34;color:#e6db74&#34;&gt;&amp;#34;float&amp;#34;&lt;/span&gt;
+
+m &lt;span style=&#34;color:#f92672&#34;&gt;=&lt;/span&gt; &lt;span style=&#34;color:#ae81ff&#34;&gt;1000&lt;/span&gt;
+n &lt;span style=&#34;color:#f92672&#34;&gt;=&lt;/span&gt; &lt;span style=&#34;color:#ae81ff&#34;&gt;100000&lt;/span&gt;
+
+&lt;span style=&#34;color:#a6e22e&#34;&gt;system.time&lt;/span&gt;({
+  x &lt;span style=&#34;color:#f92672&#34;&gt;=&lt;/span&gt; &lt;span style=&#34;color:#a6e22e&#34;&gt;matrix&lt;/span&gt;(&lt;span style=&#34;color:#a6e22e&#34;&gt;rnorm&lt;/span&gt;(m&lt;span style=&#34;color:#f92672&#34;&gt;*&lt;/span&gt;n), m, n)
+})
+&lt;span style=&#34;color:#75715e&#34;&gt;##    user  system elapsed &lt;/span&gt;
+&lt;span style=&#34;color:#75715e&#34;&gt;##   4.245   0.294   4.539 &lt;/span&gt;
+
+&lt;span style=&#34;color:#a6e22e&#34;&gt;system.time&lt;/span&gt;({
+  h &lt;span style=&#34;color:#f92672&#34;&gt;=&lt;/span&gt; hdfmat&lt;span style=&#34;color:#f92672&#34;&gt;::&lt;/span&gt;&lt;span style=&#34;color:#a6e22e&#34;&gt;hdfmat&lt;/span&gt;(f, name, n, n, type)
+})
+&lt;span style=&#34;color:#75715e&#34;&gt;##    user  system elapsed &lt;/span&gt;
+&lt;span style=&#34;color:#75715e&#34;&gt;##   0.003   0.007   0.011 &lt;/span&gt;
+
+&lt;span style=&#34;color:#a6e22e&#34;&gt;system.time&lt;/span&gt;({
+  h&lt;span style=&#34;color:#f92672&#34;&gt;$&lt;/span&gt;&lt;span style=&#34;color:#a6e22e&#34;&gt;crossprod&lt;/span&gt;(x)
+})
+&lt;span style=&#34;color:#75715e&#34;&gt;##      user    system   elapsed &lt;/span&gt;
+&lt;span style=&#34;color:#75715e&#34;&gt;## 25721.003  1227.089  3375.184 &lt;/span&gt;
+
+&lt;span style=&#34;color:#a6e22e&#34;&gt;system.time&lt;/span&gt;({
+  h&lt;span style=&#34;color:#f92672&#34;&gt;$&lt;/span&gt;&lt;span style=&#34;color:#a6e22e&#34;&gt;eigen&lt;/span&gt;(k&lt;span style=&#34;color:#f92672&#34;&gt;=&lt;/span&gt;&lt;span style=&#34;color:#ae81ff&#34;&gt;3&lt;/span&gt;)
+})
+&lt;span style=&#34;color:#75715e&#34;&gt;##    user  system elapsed &lt;/span&gt;
+&lt;span style=&#34;color:#75715e&#34;&gt;## 196.455  21.059  27.211 &lt;/span&gt;
+
+&lt;span style=&#34;color:#a6e22e&#34;&gt;system.time&lt;/span&gt;({
+  h&lt;span style=&#34;color:#f92672&#34;&gt;$&lt;/span&gt;&lt;span style=&#34;color:#a6e22e&#34;&gt;eigen&lt;/span&gt;(k&lt;span style=&#34;color:#f92672&#34;&gt;=&lt;/span&gt;&lt;span style=&#34;color:#ae81ff&#34;&gt;100&lt;/span&gt;)
+})
+&lt;span style=&#34;color:#75715e&#34;&gt;##     user   system  elapsed &lt;/span&gt;
+&lt;span style=&#34;color:#75715e&#34;&gt;## 6149.752  641.622  849.200 &lt;/span&gt;
+
+&lt;span style=&#34;color:#a6e22e&#34;&gt;system.time&lt;/span&gt;({
+  h&lt;span style=&#34;color:#f92672&#34;&gt;$&lt;/span&gt;&lt;span style=&#34;color:#a6e22e&#34;&gt;eigen&lt;/span&gt;(k&lt;span style=&#34;color:#f92672&#34;&gt;=&lt;/span&gt;&lt;span style=&#34;color:#ae81ff&#34;&gt;1000&lt;/span&gt;)
+})
+&lt;span style=&#34;color:#75715e&#34;&gt;##      user    system   elapsed &lt;/span&gt;
+&lt;span style=&#34;color:#75715e&#34;&gt;## 61362.140  6363.350  8468.052 &lt;/span&gt;
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;p&gt;When I check the resulting file with &lt;code&gt;du -h&lt;/code&gt;, I see:&lt;/p&gt;
+&lt;pre&gt;&lt;code&gt;38G	rdata.h5
+&lt;/code&gt;&lt;/pre&gt;&lt;p&gt;Which is reasonable given the size to store it in-memory is pretty close to that:&lt;/p&gt;
+&lt;div class=&#34;highlight&#34;&gt;&lt;pre style=&#34;color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4&#34;&gt;&lt;code class=&#34;language-r&#34; data-lang=&#34;r&#34;&gt;memuse&lt;span style=&#34;color:#f92672&#34;&gt;::&lt;/span&gt;&lt;span style=&#34;color:#a6e22e&#34;&gt;howbig&lt;/span&gt;(n, n, prefix&lt;span style=&#34;color:#f92672&#34;&gt;=&lt;/span&gt;&lt;span style=&#34;color:#e6db74&#34;&gt;&amp;#34;SI&amp;#34;&lt;/span&gt;)&lt;span style=&#34;color:#f92672&#34;&gt;/&lt;/span&gt;&lt;span style=&#34;color:#ae81ff&#34;&gt;2&lt;/span&gt;
+&lt;span style=&#34;color:#75715e&#34;&gt;## 40.000 GB&lt;/span&gt;
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;p&gt;Amusingly, I have enough memory to store that matrix on this workstation, but not enough to store it and compute the eigenvalues with a call to something like &lt;code&gt;eigen()&lt;/code&gt;:&lt;/p&gt;
+&lt;div class=&#34;highlight&#34;&gt;&lt;pre style=&#34;color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4&#34;&gt;&lt;code class=&#34;language-r&#34; data-lang=&#34;r&#34;&gt;memuse&lt;span style=&#34;color:#f92672&#34;&gt;::&lt;/span&gt;&lt;span style=&#34;color:#a6e22e&#34;&gt;Sys.meminfo&lt;/span&gt;()
+&lt;span style=&#34;color:#75715e&#34;&gt;## Totalram:  62.814 GiB &lt;/span&gt;
+&lt;span style=&#34;color:#75715e&#34;&gt;## Freeram:   50.744 GiB &lt;/span&gt;
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;p&gt;That&amp;rsquo;s because &lt;code&gt;eigen()&lt;/code&gt; will make a copy of the matrix, and I only have enough room for one on this workstation. However, I can actually compute this using &lt;a href=&#34;https://github.com/fml-fam/fmlr&#34;&gt;fmlr&lt;/a&gt;:&lt;/p&gt;
+&lt;div class=&#34;highlight&#34;&gt;&lt;pre style=&#34;color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4&#34;&gt;&lt;code class=&#34;language-r&#34; data-lang=&#34;r&#34;&gt;&lt;span style=&#34;color:#a6e22e&#34;&gt;suppressMessages&lt;/span&gt;(&lt;span style=&#34;color:#a6e22e&#34;&gt;library&lt;/span&gt;(fmlr))
+&lt;span style=&#34;color:#a6e22e&#34;&gt;set.seed&lt;/span&gt;(&lt;span style=&#34;color:#ae81ff&#34;&gt;1234&lt;/span&gt;)
+
+m &lt;span style=&#34;color:#f92672&#34;&gt;=&lt;/span&gt; &lt;span style=&#34;color:#ae81ff&#34;&gt;1000&lt;/span&gt;
+n &lt;span style=&#34;color:#f92672&#34;&gt;=&lt;/span&gt; &lt;span style=&#34;color:#ae81ff&#34;&gt;100000&lt;/span&gt;
+
+&lt;span style=&#34;color:#a6e22e&#34;&gt;system.time&lt;/span&gt;({
+  x &lt;span style=&#34;color:#f92672&#34;&gt;=&lt;/span&gt; &lt;span style=&#34;color:#a6e22e&#34;&gt;cpumat&lt;/span&gt;(m, n, type&lt;span style=&#34;color:#f92672&#34;&gt;=&lt;/span&gt;&lt;span style=&#34;color:#e6db74&#34;&gt;&amp;#34;float&amp;#34;&lt;/span&gt;)
+  x&lt;span style=&#34;color:#f92672&#34;&gt;$&lt;/span&gt;&lt;span style=&#34;color:#a6e22e&#34;&gt;fill_rnorm&lt;/span&gt;()
+})
+&lt;span style=&#34;color:#75715e&#34;&gt;##  user  system elapsed &lt;/span&gt;
+&lt;span style=&#34;color:#75715e&#34;&gt;## 1.519   0.045   1.565 &lt;/span&gt;
+
+&lt;span style=&#34;color:#a6e22e&#34;&gt;system.time&lt;/span&gt;({
+  cp &lt;span style=&#34;color:#f92672&#34;&gt;=&lt;/span&gt; &lt;span style=&#34;color:#a6e22e&#34;&gt;linalg_crossprod&lt;/span&gt;(&lt;span style=&#34;color:#ae81ff&#34;&gt;1&lt;/span&gt;, x)
+})
+&lt;span style=&#34;color:#75715e&#34;&gt;##    user  system elapsed &lt;/span&gt;
+&lt;span style=&#34;color:#75715e&#34;&gt;## 212.216  10.629  36.144 &lt;/span&gt;
+
+&lt;span style=&#34;color:#a6e22e&#34;&gt;system.time&lt;/span&gt;({
+  ev &lt;span style=&#34;color:#f92672&#34;&gt;=&lt;/span&gt; &lt;span style=&#34;color:#a6e22e&#34;&gt;cpuvec&lt;/span&gt;(type&lt;span style=&#34;color:#f92672&#34;&gt;=&lt;/span&gt;&lt;span style=&#34;color:#e6db74&#34;&gt;&amp;#34;float&amp;#34;&lt;/span&gt;)
+  &lt;span style=&#34;color:#a6e22e&#34;&gt;linalg_eigen_sym&lt;/span&gt;(x, ev)
+})
+&lt;span style=&#34;color:#75715e&#34;&gt;##   user  system elapsed &lt;/span&gt;
+&lt;span style=&#34;color:#75715e&#34;&gt;## 40.442   9.524   6.720&lt;/span&gt;
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;p&gt;Which is just &lt;em&gt;a bit&lt;/em&gt; faster.&lt;/p&gt;
+</description>
+    </item>
     
     <item>
       <title>A Bit About Checkpoint/Restart</title>

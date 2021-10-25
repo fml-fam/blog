@@ -7,10 +7,19 @@
     <generator>Hugo -- gohugo.io</generator>
     <language>en-us</language>
     <copyright>This work is licensed under a Creative Commons Attribution-ShareAlike 4.0 International License.</copyright>
-    <lastBuildDate>Fri, 03 Jul 2020 00:00:00 +0000</lastBuildDate>
+    <lastBuildDate>Mon, 25 Oct 2021 00:00:00 +0000</lastBuildDate>
     
 	<atom:link href="https://fml-fam.github.io/blog/tags/math/index.xml" rel="self" type="application/rss+xml" />
     
+    
+    <item>
+      <title>Computing Eigenvalues Out-of-Core</title>
+      <link>https://fml-fam.github.io/blog/2021/10/25/computing-eigenvalues-out-of-core/</link>
+      <pubDate>Mon, 25 Oct 2021 00:00:00 +0000</pubDate>
+      
+      <guid>https://fml-fam.github.io/blog/2021/10/25/computing-eigenvalues-out-of-core/</guid>
+      <description>In an earlier post, I discussed how you can compute SVD (and spectral decomposition) via Lanczos Iteration. Several times in that post, I mentioned that the method lends itself well to out-of-core data &amp;mdash; that is, data stored on disk rather than in memory. But I never bothered to actually go into any details. Recently I had the need for an out-of-core eigensolver, and I have implemented it in this R package.</description>
+    </item>
     
     <item>
       <title>Matrix Factorizations for Data Analysis</title>
