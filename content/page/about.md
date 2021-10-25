@@ -9,6 +9,6 @@ I use a lot of LaTeX in posts, so enabling JavaScript for [MathJax](https://www.
 
 Posts are copyright [CC-BY-SA](http://creativecommons.org/licenses/by-sa/4.0/). Source code listings within a post are [CC0](http://creativecommons.org/publicdomain/zero/1.0/).
 
-If you find an errors or enjoyed something, please let me know. I go by wrathematics on twitter and gmail.
+If you find any errors or enjoyed something, please let me know. I go by wrathematics on twitter and gmail.
 
 <!-- Syndicated on [R-bloggers](https://www.r-bloggers.com) -->
