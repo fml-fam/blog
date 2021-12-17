@@ -21,7 +21,7 @@ My number one favorite package, whose absence I *immediately* feel, is the [colo
 
 ![colorout example](colorout.png)
 
-I have used colorout for over a decade. I have used it on desktops, laptops, at least one netbook, order of 10 supercomputers, various AWS EC2 boxes, my web servers, my [pi-hole](https://pi-hole.net/) and a chromebook that runs Linux. For me wherever R goes, colorout goes too.
+I have used colorout for over a decade. I have used it on desktops, laptops, at least one netbook, order of 10 supercomputers, various AWS EC2 boxes, a bunch of web servers, my [pi-hole](https://pi-hole.net/) and a chromebook that runs Linux. For me wherever R goes, colorout goes too.
 
 While we're at it, although not an R package, this is something else that I categorically refuse to operate without. In my `~/.bashrc` I set this alias
 
