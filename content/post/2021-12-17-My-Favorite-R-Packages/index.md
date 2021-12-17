@@ -49,7 +49,7 @@ If you've never read it, I think it's worth looking at the foundation of ggplot,
 
 ### remotes
 
-If you want to install a package from R with something other than `install.packages()`, then remotes will do it. In fact, I found I was typing `remotes::install_github()` so often that I aliased it to `getgh()` in my `~/.Rprofile`.
+If you want to install a package from R with something other than `install.packages()`, then [remotes](https://cran.r-project.org/package=remotes) will do it effortlessly. In fact, I found I was typing `remotes::install_github()` so often that I aliased it to `getgh()` in my `~/.Rprofile`.
 
 ### rhub
 
