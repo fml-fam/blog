@@ -6,10 +6,121 @@
     <generator>Hugo -- gohugo.io</generator>
     <language>en-us</language>
     <copyright>This work is licensed under a Creative Commons Attribution-ShareAlike 4.0 International License.</copyright>
-    <lastBuildDate>Mon, 25 Oct 2021 00:00:00 +0000</lastBuildDate>
+    <lastBuildDate>Fri, 17 Dec 2021 00:00:00 +0000</lastBuildDate>
     
         <atom:link href="https://fml-fam.github.io/blog/post/index.xml" rel="self" type="application/rss+xml" />
     
+    
+    <item>
+      <title>My Favorite R Packages</title>
+      <link>https://fml-fam.github.io/blog/2021/12/17/my-favorite-r-packages/</link>
+      <pubDate>Fri, 17 Dec 2021 00:00:00 +0000</pubDate>
+      
+      <guid>https://fml-fam.github.io/blog/2021/12/17/my-favorite-r-packages/</guid>
+      <description>&lt;p&gt;I&amp;rsquo;ll warn you right off the bat, this is going to be an unusual list. Maybe I&amp;rsquo;m just an unusual guy. For sure there are some packages here that you&amp;rsquo;ve heard of. But I&amp;rsquo;m also pretty sure that there are some you haven&amp;rsquo;t.&lt;/p&gt;
+&lt;p&gt;Most of these are packages I use on a daily basis, with a few on a weekly basis. There are a few that I don&amp;rsquo;t use that often, but I consider them categorically the best at what they do and sometimes I do those things.&lt;/p&gt;
+&lt;p&gt;I&amp;rsquo;m not going to list core/recommended packages like stats, utils, methods, or Matrix. They&amp;rsquo;re all great and I use them all the time. But in my mind, they&amp;rsquo;re just part of R itself. I&amp;rsquo;m also going to split these into two groups: packages I didn&amp;rsquo;t write and packages I did. I don&amp;rsquo;t think I&amp;rsquo;m particularly egotistical about the packages I wrote. If you don&amp;rsquo;t like them or don&amp;rsquo;t want to use them, that&amp;rsquo;s fine. But I wrote them for a reason, and they solve real problems I have.&lt;/p&gt;
+&lt;p&gt;Let&amp;rsquo;s start with packages I didn&amp;rsquo;t write:&lt;/p&gt;
+&lt;h2 id=&#34;other-peoples-packages&#34;&gt;Other Peoples&amp;rsquo; Packages&lt;/h2&gt;
+&lt;h3 id=&#34;colorout&#34;&gt;colorout&lt;/h3&gt;
+&lt;p&gt;My number one favorite package, whose absence I &lt;em&gt;immediately&lt;/em&gt; feel, is the &lt;a href=&#34;https://github.com/jalvesaq/colorout&#34;&gt;colorout package&lt;/a&gt;. Basically, it makes the R terminal output different colors so you can immediately visually recognize what you&amp;rsquo;re looking at. For examples, errors are colored red. It used to be on CRAN, but was removed for what is in my opinion a very dubious rule from CRAN. But it is still actively maintained, and I refuse to use R without it.&lt;/p&gt;
+&lt;p&gt;&lt;img src=&#34;colorout.png&#34; alt=&#34;colorout example&#34;&gt;&lt;/p&gt;
+&lt;p&gt;I have used colorout for over a decade. I have used it on desktops, laptops, at least one netbook, order of 10 supercomputers, various AWS EC2 boxes, my web servers, and a chromebook that runs Linux. For me wherever R goes, colorout goes too.&lt;/p&gt;
+&lt;p&gt;While we&amp;rsquo;re at it, although not an R package, this is something else that I categorically refuse to operate without. In my &lt;code&gt;~/.bashrc&lt;/code&gt; I set this alias&lt;/p&gt;
+&lt;pre&gt;&lt;code&gt;alias R=&#39;R --no-save --no-restore --quiet&#39;
+&lt;/code&gt;&lt;/pre&gt;&lt;p&gt;When R starts, I don&amp;rsquo;t want a giant wall of text critting me for 1k damage. I don&amp;rsquo;t want to be asked if I&amp;rsquo;m REALLY REALLY SURE I want to quit when I exit the damn thing. And I &lt;em&gt;absolutely do not ever&lt;/em&gt; want my workspace serialized. Everyone spent &lt;em&gt;years&lt;/em&gt; whining about &lt;code&gt;stringsAsFactors&lt;/code&gt; on twitter, but this silliness is radically more obnoxious in my estimation. R core should make this behavior the default. #TeamNoSaveNoRestore&lt;/p&gt;
+&lt;h3 id=&#34;renv&#34;&gt;renv&lt;/h3&gt;
+&lt;p&gt;Next, there is the &lt;a href=&#34;https://cran.r-project.org/package=renv&#34;&gt;renv package&lt;/a&gt;. If I had created this list a week ago, I don&amp;rsquo;t know that this package would have made the cut; and if I were to make it a few months from now, I might forget about it. Not that I ever had anything against it, but I think of this kind of infrastructure like an airbag in a car. You sort of forget it&amp;rsquo;s there until it saves your life. And it recently just saved my life.&lt;/p&gt;
+&lt;p&gt;Lately I&amp;rsquo;ve been working on a project that has many dependencies, and the authors use renv to manage that. Prior to working with it, I always felt like &amp;ldquo;oh renv, yeah that seems nice, but I don&amp;rsquo;t really need it&amp;rdquo;. Well, this project &lt;em&gt;needs&lt;/em&gt; renv. And recently, one of this project&amp;rsquo;s GitHub package dependencies disappeared. Poof, gone from the internet forever. Amazingly, renv caches the source packages before installing them. So we were able to copy the source files of the dead package cloned by renv to a new GitHub repo, and everything was fine. Hooray!&lt;/p&gt;
+&lt;h3 id=&#34;ggplot2&#34;&gt;ggplot2&lt;/h3&gt;
+&lt;p&gt;Everyone knows about &lt;a href=&#34;https://cran.r-project.org/package=ggplot2&#34;&gt;ggplot2&lt;/a&gt;. I largely don&amp;rsquo;t like the &amp;ldquo;tidyverse&amp;rdquo;. I don&amp;rsquo;t like the name (both &amp;ldquo;tidy&amp;rdquo; and &amp;ldquo;verse&amp;rdquo; make my eyes roll into the back of my head), and most of these &amp;ldquo;tidy&amp;rdquo; packages (dplyr in particular) solve problems I don&amp;rsquo;t have with solutions that don&amp;rsquo;t make any sense to me. SQL has destroyed some of you peoples&amp;rsquo; brains. But ggplot2 is something special to me. Any time I need to make a plot, it&amp;rsquo;s some obnoxiously custom thing that base R graphics can&amp;rsquo;t begin to handle, but ggplot2 does beautifully.&lt;/p&gt;
+&lt;p&gt;&lt;img src=&#34;nvblas.png&#34; alt=&#34;A random ggplot2-generated plot I had lying around&#34;&gt;&lt;/p&gt;
+&lt;p&gt;Look at that plot. It&amp;rsquo;s exactly what I want. It&amp;rsquo;s beautiful. The code to generate it is a little verbose and ugly, but so what. The outcome justifies the process.&lt;/p&gt;
+&lt;p&gt;If you&amp;rsquo;ve never read it, I think it&amp;rsquo;s worth looking at the foundation of ggplot, namely Leland Wilkinson&amp;rsquo;s &lt;a href=&#34;https://link.springer.com/book/10.1007/0-387-28695-0&#34;&gt;Grammar of Graphics book&lt;/a&gt;. A lot of the book is kind of made irrelevant by R itself (read it and you&amp;rsquo;ll see what I mean). But I would still recommend at least thumbing through the book, assuming you can get a copy from your local library or sketchy Russian pdf website.&lt;/p&gt;
+&lt;h3 id=&#34;remotes&#34;&gt;remotes&lt;/h3&gt;
+&lt;p&gt;If you want to install a package from R with something other than &lt;code&gt;install.packages()&lt;/code&gt;, then remotes will do it. In fact, I found I was typing &lt;code&gt;remotes::install_github()&lt;/code&gt; so often that I aliased it to &lt;code&gt;getgh()&lt;/code&gt; in my &lt;code&gt;~/.Rprofile&lt;/code&gt;.&lt;/p&gt;
+&lt;h3 id=&#34;rhub&#34;&gt;rhub&lt;/h3&gt;
+&lt;p&gt;If you do R package development and you aren&amp;rsquo;t using the &lt;a href=&#34;https://cran.r-project.org/package=rhub&#34;&gt;rhub package&lt;/a&gt;, you are making your life way harder than it needs to be. Test your software on all the strange, exotic operating systems that you don&amp;rsquo;t normally have access to. Like Windows.&lt;/p&gt;
+&lt;h2 id=&#34;packages-i-wrote&#34;&gt;Packages I Wrote&lt;/h2&gt;
+&lt;p&gt;I&amp;rsquo;m separating these from the others because I don&amp;rsquo;t know how useful these are to most people. I&amp;rsquo;ve written or made significant contributions to many R packages, probably over 100. These aren&amp;rsquo;t even necessarily the ones I&amp;rsquo;m most proud of (fmlr is an exception). But these are packages that I use &lt;em&gt;a lot&lt;/em&gt;.&lt;/p&gt;
+&lt;h3 id=&#34;timer&#34;&gt;timer&lt;/h3&gt;
+&lt;p&gt;You&amp;rsquo;re not going to believe me, but I use the &lt;a href=&#34;https://github.com/wrathematics/timer&#34;&gt;timer package&lt;/a&gt; more than any other R package. What does it do? Well, it&amp;rsquo;s a timer. I use the &amp;ldquo;count down&amp;rdquo; timers for cooking. For example, I cook my bread in the oven for 20 minutes, so I&amp;rsquo;ll run &lt;code&gt;minutes(20)&lt;/code&gt;. I also use the &amp;ldquo;count up&amp;rdquo; timer (basically a stop watch) in the gym for rest sets. For that I run &lt;code&gt;counter()&lt;/code&gt;. I have a friend that uses this for meetings; for that, he likes to use the &lt;code&gt;alarm()&lt;/code&gt; function, which accepts a time of day as a string.&lt;/p&gt;
+&lt;p&gt;When I need multiple timers, I just use multiple terminals each with an R session. The package also has a shiny app so you can do it from a web browser. For that you can run &lt;code&gt;timer::webtimer()&lt;/code&gt;.&lt;/p&gt;
+&lt;p&gt;&lt;img src=&#34;timer.png&#34; alt=&#34;Shiny app timer&#34;&gt;&lt;/p&gt;
+&lt;h3 id=&#34;memuse&#34;&gt;memuse&lt;/h3&gt;
+&lt;p&gt;Using the &lt;a href=&#34;https://cran.r-project.org/package=memuse&#34;&gt;memuse package&lt;/a&gt;, I settle a staggering amount of arguments by typing:&lt;/p&gt;
+&lt;div class=&#34;highlight&#34;&gt;&lt;pre style=&#34;color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4&#34;&gt;&lt;code class=&#34;language-r&#34; data-lang=&#34;r&#34;&gt;memuse&lt;span style=&#34;color:#f92672&#34;&gt;::&lt;/span&gt;&lt;span style=&#34;color:#a6e22e&#34;&gt;howbig&lt;/span&gt;(m, n)
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;p&gt;What does it do? It tells you how much RAM you need for an m by n numeric matrix (so double precision). If you want float, you can add the argument &lt;code&gt;type=&amp;quot;float&amp;quot;&lt;/code&gt;, or just do &lt;code&gt;howbig(m, n)/2&lt;/code&gt;. It really works quite well.&lt;/p&gt;
+&lt;p&gt;The package also has a bunch of ways to query system information, like &lt;code&gt;Sys.meminfo()&lt;/code&gt; which tells you how much RAM you have. These all work on Linux, Windows, Mac, and FreeBSD.&lt;/p&gt;
+&lt;div class=&#34;highlight&#34;&gt;&lt;pre style=&#34;color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4&#34;&gt;&lt;code class=&#34;language-r&#34; data-lang=&#34;r&#34;&gt;&lt;span style=&#34;color:#a6e22e&#34;&gt;Sys.meminfo&lt;/span&gt;()
+&lt;span style=&#34;color:#75715e&#34;&gt;## Totalram:  62.814 GiB &lt;/span&gt;
+&lt;span style=&#34;color:#75715e&#34;&gt;## Freeram:   42.685 GiB &lt;/span&gt;
+&lt;span style=&#34;color:#a6e22e&#34;&gt;Sys.swapinfo&lt;/span&gt;()
+&lt;span style=&#34;color:#75715e&#34;&gt;## Totalswap:     2.000 GiB &lt;/span&gt;
+&lt;span style=&#34;color:#75715e&#34;&gt;## Freeswap:      1.989 GiB &lt;/span&gt;
+&lt;span style=&#34;color:#75715e&#34;&gt;## Cachedswap:  468.000 KiB &lt;/span&gt;
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;p&gt;We can also see how much memory your current R session is using:&lt;/p&gt;
+&lt;div class=&#34;highlight&#34;&gt;&lt;pre style=&#34;color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4&#34;&gt;&lt;code class=&#34;language-r&#34; data-lang=&#34;r&#34;&gt;&lt;span style=&#34;color:#a6e22e&#34;&gt;Sys.procmem&lt;/span&gt;()
+&lt;span style=&#34;color:#75715e&#34;&gt;## Size:  69.383 MiB &lt;/span&gt;
+&lt;span style=&#34;color:#75715e&#34;&gt;## Peak:  69.383 MiB &lt;/span&gt;
+&lt;span style=&#34;color:#a6e22e&#34;&gt;howbig&lt;/span&gt;(&lt;span style=&#34;color:#ae81ff&#34;&gt;10000&lt;/span&gt;, &lt;span style=&#34;color:#ae81ff&#34;&gt;10000&lt;/span&gt;)
+&lt;span style=&#34;color:#75715e&#34;&gt;## 762.939 MiB&lt;/span&gt;
+x &lt;span style=&#34;color:#f92672&#34;&gt;=&lt;/span&gt; &lt;span style=&#34;color:#a6e22e&#34;&gt;matrix&lt;/span&gt;(&lt;span style=&#34;color:#ae81ff&#34;&gt;0&lt;/span&gt;, nrow&lt;span style=&#34;color:#f92672&#34;&gt;=&lt;/span&gt;&lt;span style=&#34;color:#ae81ff&#34;&gt;10000&lt;/span&gt;, ncol&lt;span style=&#34;color:#f92672&#34;&gt;=&lt;/span&gt;&lt;span style=&#34;color:#ae81ff&#34;&gt;10000&lt;/span&gt;)
+&lt;span style=&#34;color:#a6e22e&#34;&gt;rm&lt;/span&gt;(x)
+&lt;span style=&#34;color:#a6e22e&#34;&gt;invisible&lt;/span&gt;(&lt;span style=&#34;color:#a6e22e&#34;&gt;gc&lt;/span&gt;())
+&lt;span style=&#34;color:#a6e22e&#34;&gt;Sys.procmem&lt;/span&gt;()
+&lt;span style=&#34;color:#75715e&#34;&gt;## Size:   71.719 MiB &lt;/span&gt;
+&lt;span style=&#34;color:#75715e&#34;&gt;## Peak:  834.559 MiB &lt;/span&gt;
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;p&gt;I even have cache lookups, which I forgot about until just now:&lt;/p&gt;
+&lt;div class=&#34;highlight&#34;&gt;&lt;pre style=&#34;color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4&#34;&gt;&lt;code class=&#34;language-r&#34; data-lang=&#34;r&#34;&gt;&lt;span style=&#34;color:#a6e22e&#34;&gt;Sys.cachesize&lt;/span&gt;()
+&lt;span style=&#34;color:#75715e&#34;&gt;## L1I:   64.000 KiB &lt;/span&gt;
+&lt;span style=&#34;color:#75715e&#34;&gt;## L1D:   32.000 KiB &lt;/span&gt;
+&lt;span style=&#34;color:#75715e&#34;&gt;## L2:   512.000 KiB &lt;/span&gt;
+&lt;span style=&#34;color:#75715e&#34;&gt;## L3:    16.000 MiB &lt;/span&gt;
+&lt;span style=&#34;color:#a6e22e&#34;&gt;Sys.cachelinesize&lt;/span&gt;()
+&lt;span style=&#34;color:#75715e&#34;&gt;## Linesize:  64 B &lt;/span&gt;
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;h3 id=&#34;merkhet&#34;&gt;merkhet&lt;/h3&gt;
+&lt;p&gt;Like apparently everyone else, I wrote my own benchmarking package. I call mine &lt;a href=&#34;https://hpcran.org/packages/merkhet/index.html&#34;&gt;merkhet&lt;/a&gt;, which is the name of an ancient Egyptian timekeeping device.&lt;/p&gt;
+&lt;p&gt;Here&amp;rsquo;s an example of how it works:&lt;/p&gt;
+&lt;div class=&#34;highlight&#34;&gt;&lt;pre style=&#34;color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4&#34;&gt;&lt;code class=&#34;language-r&#34; data-lang=&#34;r&#34;&gt;b &lt;span style=&#34;color:#f92672&#34;&gt;=&lt;/span&gt; merkhet&lt;span style=&#34;color:#f92672&#34;&gt;::&lt;/span&gt;&lt;span style=&#34;color:#a6e22e&#34;&gt;bench&lt;/span&gt;(&lt;span style=&#34;color:#e6db74&#34;&gt;&amp;#34;My example benchmark&amp;#34;&lt;/span&gt;)
+
+b&lt;span style=&#34;color:#f92672&#34;&gt;$&lt;/span&gt;&lt;span style=&#34;color:#a6e22e&#34;&gt;time&lt;/span&gt;(&lt;span style=&#34;color:#a6e22e&#34;&gt;Sys.sleep&lt;/span&gt;(&lt;span style=&#34;color:#ae81ff&#34;&gt;.5&lt;/span&gt;), reps&lt;span style=&#34;color:#f92672&#34;&gt;=&lt;/span&gt;&lt;span style=&#34;color:#ae81ff&#34;&gt;3&lt;/span&gt;, name&lt;span style=&#34;color:#f92672&#34;&gt;=&lt;/span&gt;&lt;span style=&#34;color:#e6db74&#34;&gt;&amp;#34;fast op&amp;#34;&lt;/span&gt;)
+b&lt;span style=&#34;color:#f92672&#34;&gt;$&lt;/span&gt;&lt;span style=&#34;color:#a6e22e&#34;&gt;time&lt;/span&gt;(&lt;span style=&#34;color:#a6e22e&#34;&gt;Sys.sleep&lt;/span&gt;(&lt;span style=&#34;color:#ae81ff&#34;&gt;1&lt;/span&gt;), reps&lt;span style=&#34;color:#f92672&#34;&gt;=&lt;/span&gt;&lt;span style=&#34;color:#ae81ff&#34;&gt;1&lt;/span&gt;, name&lt;span style=&#34;color:#f92672&#34;&gt;=&lt;/span&gt;&lt;span style=&#34;color:#e6db74&#34;&gt;&amp;#34;slow op&amp;#34;&lt;/span&gt;)
+
+b
+&lt;span style=&#34;color:#75715e&#34;&gt;## ## My example benchmark &lt;/span&gt;
+&lt;span style=&#34;color:#75715e&#34;&gt;##         elapsed reps       avg relative&lt;/span&gt;
+&lt;span style=&#34;color:#75715e&#34;&gt;## fast op   1.501    3 0.5003333      1.5&lt;/span&gt;
+&lt;span style=&#34;color:#75715e&#34;&gt;## slow op   1.002    1 1.0020000      1.0&lt;/span&gt;
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;p&gt;This solves two main problems I have with other benchmarkers:&lt;/p&gt;
+&lt;ol&gt;
+&lt;li&gt;Sometimes I want to run different operations at different numbers of reps (e.g. more fast ops than slow ops)&lt;/li&gt;
+&lt;li&gt;Sometimes I want to &lt;em&gt;conditionally&lt;/em&gt; benchmark something. For example, only benchmark a GPU operation if the package has been built with GPU support.&lt;/li&gt;
+&lt;/ol&gt;
+&lt;p&gt;It also solves a few other minor problems I have with benchmarkers. Like, it should be &lt;em&gt;really easy&lt;/em&gt; to set the names of what I&amp;rsquo;m benchmarking. I also don&amp;rsquo;t want to futz around with the time unit. For evaluating an R expression, I believe very strongly that the correct unit is seconds.&lt;/p&gt;
+&lt;p&gt;The benchmark method offers a few other handy things I&amp;rsquo;ve seen in other benchmarkers like the &lt;code&gt;barplot()&lt;/code&gt; method which you may be surprised to learn, creates barplots. But I also offer a few other handy things like this:&lt;/p&gt;
+&lt;div class=&#34;highlight&#34;&gt;&lt;pre style=&#34;color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4&#34;&gt;&lt;code class=&#34;language-r&#34; data-lang=&#34;r&#34;&gt;tbl &lt;span style=&#34;color:#f92672&#34;&gt;=&lt;/span&gt; b&lt;span style=&#34;color:#f92672&#34;&gt;$&lt;/span&gt;&lt;span style=&#34;color:#a6e22e&#34;&gt;table&lt;/span&gt;()
+&lt;span style=&#34;color:#a6e22e&#34;&gt;str&lt;/span&gt;(tbl)
+&lt;span style=&#34;color:#75715e&#34;&gt;## &amp;#39;data.frame&amp;#39;:	2 obs. of  5 variables:&lt;/span&gt;
+&lt;span style=&#34;color:#75715e&#34;&gt;##  $ operation: Factor w/ 2 levels &amp;#34;fast op&amp;#34;,&amp;#34;slow op&amp;#34;: 1 2&lt;/span&gt;
+&lt;span style=&#34;color:#75715e&#34;&gt;##  $ elapsed  : num  1.5 1&lt;/span&gt;
+&lt;span style=&#34;color:#75715e&#34;&gt;##  $ reps     : num  3 1&lt;/span&gt;
+&lt;span style=&#34;color:#75715e&#34;&gt;##  $ avg      : num  0.501 1.001&lt;/span&gt;
+&lt;span style=&#34;color:#75715e&#34;&gt;##  $ relative : num  1.5 1&lt;/span&gt;
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;p&gt;and this&lt;/p&gt;
+&lt;div class=&#34;highlight&#34;&gt;&lt;pre style=&#34;color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4&#34;&gt;&lt;code class=&#34;language-r&#34; data-lang=&#34;r&#34;&gt;b&lt;span style=&#34;color:#f92672&#34;&gt;$&lt;/span&gt;&lt;span style=&#34;color:#a6e22e&#34;&gt;csv&lt;/span&gt;()
+&lt;span style=&#34;color:#75715e&#34;&gt;## expr,elapsed,reps,avg,relative&lt;/span&gt;
+&lt;span style=&#34;color:#75715e&#34;&gt;## &amp;#34;fast op&amp;#34;,1.502,3,0.5006667,1.5&lt;/span&gt;
+&lt;span style=&#34;color:#75715e&#34;&gt;## &amp;#34;slow op&amp;#34;,1.001,1,1.001,1&lt;/span&gt;
+
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;p&gt;The package has some other utilities you may or may not care about, like this&lt;/p&gt;
+&lt;div class=&#34;highlight&#34;&gt;&lt;pre style=&#34;color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4&#34;&gt;&lt;code class=&#34;language-r&#34; data-lang=&#34;r&#34;&gt;&lt;span style=&#34;color:#a6e22e&#34;&gt;readable.time&lt;/span&gt;(&lt;span style=&#34;color:#ae81ff&#34;&gt;2500&lt;/span&gt;)
+&lt;span style=&#34;color:#75715e&#34;&gt;## 41.667 minutes &lt;/span&gt;
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;h3 id=&#34;fmlr&#34;&gt;fmlr&lt;/h3&gt;
+&lt;p&gt;I&amp;rsquo;ve shown this package off a few times on this blog. And basically it&amp;rsquo;s the reason this blog exists. But I still need to talk about this on its own at some point.&lt;/p&gt;
+&lt;p&gt;Anyway, these days when I need to do something with matrix computing, I use &lt;a href=&#34;https://hpcran.org/packages/fmlr/index.html&#34;&gt;fmlr package&lt;/a&gt;. More on that later I guess.&lt;/p&gt;
+</description>
+    </item>
     
     <item>
       <title>Computing Eigenvalues Out-of-Core</title>

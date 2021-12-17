@@ -1,0 +1,225 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+	<meta charset="utf-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1">
+	
+	<title>My Favorite R Packages</title>
+	
+	<meta name="description" content="">
+	<meta name="image" content="">
+	
+	<meta itemprop="name" content="My Favorite R Packages">
+	<meta itemprop="description" content="">
+	<meta itemprop="image" content="">
+	
+	<meta name="og:title" content="My Favorite R Packages">
+	<meta name="og:description" content="">
+	
+	<meta name="og:url" content="https://fml-fam.github.io/blog/2021/12/17/my-favorite-r-packages/">
+	<meta name="og:site_name" content="My Favorite R Packages">
+	<meta name="og:type" content="article">
+	
+	<meta name="article:author" content="wrathematics">
+	<meta name="article:tag" content="r ">
+	<link rel="stylesheet" type="text/css" href="/blog/css/style3.css">
+	<script src="/blog/js/caption.js"></script>
+</head>
+<body>
+
+<header >
+	<a href="/blog" style="float: left;color:#777;"><strong>fml blog</strong>
+	</a>
+	<a href="/blog/index.xml" style="color:#777;float: left;"><strong>
+		&nbsp;
+	<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather feather-rss"><path d="M4 11a9 9 0 0 1 9 9"></path><path d="M4 4a16 16 0 0 1 16 16"></path><circle cx="5" cy="19" r="1"></circle></svg>
+</strong></a>
+<a href="https://fml-fam.github.io/blog/page/about/" style="color:#777;"><strong>About</strong></a>
+
+</header>
+
+
+<script>
+function fadeOut(el) {
+  el.style.opacity = 1;
+
+  var last = +new Date();
+  var tick = function() {
+    el.style.opacity = +el.style.opacity - (new Date() - last) / 80;
+    last = +new Date();
+    
+
+    if (el.style.opacity > 0) {
+      (window.requestAnimationFrame && requestAnimationFrame(tick)) || setTimeout(tick, 16);
+    } else {
+    	el.style.display='none';
+    }
+  };
+
+  tick();
+}
+
+function ready(fn) {
+    if (document.attachEvent ? document.readyState === "complete" : document.readyState !== "loading") {
+        var elements = document.querySelectorAll("img");
+        Array.prototype.forEach.call(elements, function(el, i) {
+            if (el.getAttribute("alt")) {
+                const caption = document.createElement('figcaption');
+                var node = document.createTextNode(el.getAttribute("alt"));
+                caption.appendChild(node);
+                const wrapper = document.createElement('figure');
+                wrapper.className = 'image';
+                el.parentNode.insertBefore(wrapper, el);
+                el.parentNode.removeChild(el);
+                wrapper.appendChild(el);
+                wrapper.appendChild(caption);
+            }
+        });
+
+    } else {
+        document.addEventListener('DOMContentLoaded', fn);
+    }
+}
+window.onload = ready;
+</script>
+
+<div class="content">
+	<h1>My Favorite R Packages <aside><a href="/blog/tags/r/" class="w3-tag">/r</a>&nbsp;&nbsp;&nbsp;</aside></h1>
+  
+  	<p><small><em>Written Fri, December 17, 2021. </em>
+  	</small></p>
+  
+  
+  <p>I&rsquo;ll warn you right off the bat, this is going to be an unusual list. Maybe I&rsquo;m just an unusual guy. For sure there are some packages here that you&rsquo;ve heard of. But I&rsquo;m also pretty sure that there are some you haven&rsquo;t.</p>
+<p>Most of these are packages I use on a daily basis, with a few on a weekly basis. There are a few that I don&rsquo;t use that often, but I consider them categorically the best at what they do and sometimes I do those things.</p>
+<p>I&rsquo;m not going to list core/recommended packages like stats, utils, methods, or Matrix. They&rsquo;re all great and I use them all the time. But in my mind, they&rsquo;re just part of R itself. I&rsquo;m also going to split these into two groups: packages I didn&rsquo;t write and packages I did. I don&rsquo;t think I&rsquo;m particularly egotistical about the packages I wrote. If you don&rsquo;t like them or don&rsquo;t want to use them, that&rsquo;s fine. But I wrote them for a reason, and they solve real problems I have.</p>
+<p>Let&rsquo;s start with packages I didn&rsquo;t write:</p>
+<h2 id="other-peoples-packages">Other Peoples&rsquo; Packages</h2>
+<h3 id="colorout">colorout</h3>
+<p>My number one favorite package, whose absence I <em>immediately</em> feel, is the <a href="https://github.com/jalvesaq/colorout">colorout package</a>. Basically, it makes the R terminal output different colors so you can immediately visually recognize what you&rsquo;re looking at. For examples, errors are colored red. It used to be on CRAN, but was removed for what is in my opinion a very dubious rule from CRAN. But it is still actively maintained, and I refuse to use R without it.</p>
+<p><img src="colorout.png" alt="colorout example"></p>
+<p>I have used colorout for over a decade. I have used it on desktops, laptops, at least one netbook, order of 10 supercomputers, various AWS EC2 boxes, my web servers, and a chromebook that runs Linux. For me wherever R goes, colorout goes too.</p>
+<p>While we&rsquo;re at it, although not an R package, this is something else that I categorically refuse to operate without. In my <code>~/.bashrc</code> I set this alias</p>
+<pre><code>alias R='R --no-save --no-restore --quiet'
+</code></pre><p>When R starts, I don&rsquo;t want a giant wall of text critting me for 1k damage. I don&rsquo;t want to be asked if I&rsquo;m REALLY REALLY SURE I want to quit when I exit the damn thing. And I <em>absolutely do not ever</em> want my workspace serialized. Everyone spent <em>years</em> whining about <code>stringsAsFactors</code> on twitter, but this silliness is radically more obnoxious in my estimation. R core should make this behavior the default. #TeamNoSaveNoRestore</p>
+<h3 id="renv">renv</h3>
+<p>Next, there is the <a href="https://cran.r-project.org/package=renv">renv package</a>. If I had created this list a week ago, I don&rsquo;t know that this package would have made the cut; and if I were to make it a few months from now, I might forget about it. Not that I ever had anything against it, but I think of this kind of infrastructure like an airbag in a car. You sort of forget it&rsquo;s there until it saves your life. And it recently just saved my life.</p>
+<p>Lately I&rsquo;ve been working on a project that has many dependencies, and the authors use renv to manage that. Prior to working with it, I always felt like &ldquo;oh renv, yeah that seems nice, but I don&rsquo;t really need it&rdquo;. Well, this project <em>needs</em> renv. And recently, one of this project&rsquo;s GitHub package dependencies disappeared. Poof, gone from the internet forever. Amazingly, renv caches the source packages before installing them. So we were able to copy the source files of the dead package cloned by renv to a new GitHub repo, and everything was fine. Hooray!</p>
+<h3 id="ggplot2">ggplot2</h3>
+<p>Everyone knows about <a href="https://cran.r-project.org/package=ggplot2">ggplot2</a>. I largely don&rsquo;t like the &ldquo;tidyverse&rdquo;. I don&rsquo;t like the name (both &ldquo;tidy&rdquo; and &ldquo;verse&rdquo; make my eyes roll into the back of my head), and most of these &ldquo;tidy&rdquo; packages (dplyr in particular) solve problems I don&rsquo;t have with solutions that don&rsquo;t make any sense to me. SQL has destroyed some of you peoples&rsquo; brains. But ggplot2 is something special to me. Any time I need to make a plot, it&rsquo;s some obnoxiously custom thing that base R graphics can&rsquo;t begin to handle, but ggplot2 does beautifully.</p>
+<p><img src="nvblas.png" alt="A random ggplot2-generated plot I had lying around"></p>
+<p>Look at that plot. It&rsquo;s exactly what I want. It&rsquo;s beautiful. The code to generate it is a little verbose and ugly, but so what. The outcome justifies the process.</p>
+<p>If you&rsquo;ve never read it, I think it&rsquo;s worth looking at the foundation of ggplot, namely Leland Wilkinson&rsquo;s <a href="https://link.springer.com/book/10.1007/0-387-28695-0">Grammar of Graphics book</a>. A lot of the book is kind of made irrelevant by R itself (read it and you&rsquo;ll see what I mean). But I would still recommend at least thumbing through the book, assuming you can get a copy from your local library or sketchy Russian pdf website.</p>
+<h3 id="remotes">remotes</h3>
+<p>If you want to install a package from R with something other than <code>install.packages()</code>, then remotes will do it. In fact, I found I was typing <code>remotes::install_github()</code> so often that I aliased it to <code>getgh()</code> in my <code>~/.Rprofile</code>.</p>
+<h3 id="rhub">rhub</h3>
+<p>If you do R package development and you aren&rsquo;t using the <a href="https://cran.r-project.org/package=rhub">rhub package</a>, you are making your life way harder than it needs to be. Test your software on all the strange, exotic operating systems that you don&rsquo;t normally have access to. Like Windows.</p>
+<h2 id="packages-i-wrote">Packages I Wrote</h2>
+<p>I&rsquo;m separating these from the others because I don&rsquo;t know how useful these are to most people. I&rsquo;ve written or made significant contributions to many R packages, probably over 100. These aren&rsquo;t even necessarily the ones I&rsquo;m most proud of (fmlr is an exception). But these are packages that I use <em>a lot</em>.</p>
+<h3 id="timer">timer</h3>
+<p>You&rsquo;re not going to believe me, but I use the <a href="https://github.com/wrathematics/timer">timer package</a> more than any other R package. What does it do? Well, it&rsquo;s a timer. I use the &ldquo;count down&rdquo; timers for cooking. For example, I cook my bread in the oven for 20 minutes, so I&rsquo;ll run <code>minutes(20)</code>. I also use the &ldquo;count up&rdquo; timer (basically a stop watch) in the gym for rest sets. For that I run <code>counter()</code>. I have a friend that uses this for meetings; for that, he likes to use the <code>alarm()</code> function, which accepts a time of day as a string.</p>
+<p>When I need multiple timers, I just use multiple terminals each with an R session. The package also has a shiny app so you can do it from a web browser. For that you can run <code>timer::webtimer()</code>.</p>
+<p><img src="timer.png" alt="Shiny app timer"></p>
+<h3 id="memuse">memuse</h3>
+<p>Using the <a href="https://cran.r-project.org/package=memuse">memuse package</a>, I settle a staggering amount of arguments by typing:</p>
+<div class="highlight"><pre style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-r" data-lang="r">memuse<span style="color:#f92672">::</span><span style="color:#a6e22e">howbig</span>(m, n)
+</code></pre></div><p>What does it do? It tells you how much RAM you need for an m by n numeric matrix (so double precision). If you want float, you can add the argument <code>type=&quot;float&quot;</code>, or just do <code>howbig(m, n)/2</code>. It really works quite well.</p>
+<p>The package also has a bunch of ways to query system information, like <code>Sys.meminfo()</code> which tells you how much RAM you have. These all work on Linux, Windows, Mac, and FreeBSD.</p>
+<div class="highlight"><pre style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-r" data-lang="r"><span style="color:#a6e22e">Sys.meminfo</span>()
+<span style="color:#75715e">## Totalram:  62.814 GiB </span>
+<span style="color:#75715e">## Freeram:   42.685 GiB </span>
+<span style="color:#a6e22e">Sys.swapinfo</span>()
+<span style="color:#75715e">## Totalswap:     2.000 GiB </span>
+<span style="color:#75715e">## Freeswap:      1.989 GiB </span>
+<span style="color:#75715e">## Cachedswap:  468.000 KiB </span>
+</code></pre></div><p>We can also see how much memory your current R session is using:</p>
+<div class="highlight"><pre style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-r" data-lang="r"><span style="color:#a6e22e">Sys.procmem</span>()
+<span style="color:#75715e">## Size:  69.383 MiB </span>
+<span style="color:#75715e">## Peak:  69.383 MiB </span>
+<span style="color:#a6e22e">howbig</span>(<span style="color:#ae81ff">10000</span>, <span style="color:#ae81ff">10000</span>)
+<span style="color:#75715e">## 762.939 MiB</span>
+x <span style="color:#f92672">=</span> <span style="color:#a6e22e">matrix</span>(<span style="color:#ae81ff">0</span>, nrow<span style="color:#f92672">=</span><span style="color:#ae81ff">10000</span>, ncol<span style="color:#f92672">=</span><span style="color:#ae81ff">10000</span>)
+<span style="color:#a6e22e">rm</span>(x)
+<span style="color:#a6e22e">invisible</span>(<span style="color:#a6e22e">gc</span>())
+<span style="color:#a6e22e">Sys.procmem</span>()
+<span style="color:#75715e">## Size:   71.719 MiB </span>
+<span style="color:#75715e">## Peak:  834.559 MiB </span>
+</code></pre></div><p>I even have cache lookups, which I forgot about until just now:</p>
+<div class="highlight"><pre style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-r" data-lang="r"><span style="color:#a6e22e">Sys.cachesize</span>()
+<span style="color:#75715e">## L1I:   64.000 KiB </span>
+<span style="color:#75715e">## L1D:   32.000 KiB </span>
+<span style="color:#75715e">## L2:   512.000 KiB </span>
+<span style="color:#75715e">## L3:    16.000 MiB </span>
+<span style="color:#a6e22e">Sys.cachelinesize</span>()
+<span style="color:#75715e">## Linesize:  64 B </span>
+</code></pre></div><h3 id="merkhet">merkhet</h3>
+<p>Like apparently everyone else, I wrote my own benchmarking package. I call mine <a href="https://hpcran.org/packages/merkhet/index.html">merkhet</a>, which is the name of an ancient Egyptian timekeeping device.</p>
+<p>Here&rsquo;s an example of how it works:</p>
+<div class="highlight"><pre style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-r" data-lang="r">b <span style="color:#f92672">=</span> merkhet<span style="color:#f92672">::</span><span style="color:#a6e22e">bench</span>(<span style="color:#e6db74">&#34;My example benchmark&#34;</span>)
+
+b<span style="color:#f92672">$</span><span style="color:#a6e22e">time</span>(<span style="color:#a6e22e">Sys.sleep</span>(<span style="color:#ae81ff">.5</span>), reps<span style="color:#f92672">=</span><span style="color:#ae81ff">3</span>, name<span style="color:#f92672">=</span><span style="color:#e6db74">&#34;fast op&#34;</span>)
+b<span style="color:#f92672">$</span><span style="color:#a6e22e">time</span>(<span style="color:#a6e22e">Sys.sleep</span>(<span style="color:#ae81ff">1</span>), reps<span style="color:#f92672">=</span><span style="color:#ae81ff">1</span>, name<span style="color:#f92672">=</span><span style="color:#e6db74">&#34;slow op&#34;</span>)
+
+b
+<span style="color:#75715e">## ## My example benchmark </span>
+<span style="color:#75715e">##         elapsed reps       avg relative</span>
+<span style="color:#75715e">## fast op   1.501    3 0.5003333      1.5</span>
+<span style="color:#75715e">## slow op   1.002    1 1.0020000      1.0</span>
+</code></pre></div><p>This solves two main problems I have with other benchmarkers:</p>
+<ol>
+<li>Sometimes I want to run different operations at different numbers of reps (e.g. more fast ops than slow ops)</li>
+<li>Sometimes I want to <em>conditionally</em> benchmark something. For example, only benchmark a GPU operation if the package has been built with GPU support.</li>
+</ol>
+<p>It also solves a few other minor problems I have with benchmarkers. Like, it should be <em>really easy</em> to set the names of what I&rsquo;m benchmarking. I also don&rsquo;t want to futz around with the time unit. For evaluating an R expression, I believe very strongly that the correct unit is seconds.</p>
+<p>The benchmark method offers a few other handy things I&rsquo;ve seen in other benchmarkers like the <code>barplot()</code> method which you may be surprised to learn, creates barplots. But I also offer a few other handy things like this:</p>
+<div class="highlight"><pre style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-r" data-lang="r">tbl <span style="color:#f92672">=</span> b<span style="color:#f92672">$</span><span style="color:#a6e22e">table</span>()
+<span style="color:#a6e22e">str</span>(tbl)
+<span style="color:#75715e">## &#39;data.frame&#39;:	2 obs. of  5 variables:</span>
+<span style="color:#75715e">##  $ operation: Factor w/ 2 levels &#34;fast op&#34;,&#34;slow op&#34;: 1 2</span>
+<span style="color:#75715e">##  $ elapsed  : num  1.5 1</span>
+<span style="color:#75715e">##  $ reps     : num  3 1</span>
+<span style="color:#75715e">##  $ avg      : num  0.501 1.001</span>
+<span style="color:#75715e">##  $ relative : num  1.5 1</span>
+</code></pre></div><p>and this</p>
+<div class="highlight"><pre style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-r" data-lang="r">b<span style="color:#f92672">$</span><span style="color:#a6e22e">csv</span>()
+<span style="color:#75715e">## expr,elapsed,reps,avg,relative</span>
+<span style="color:#75715e">## &#34;fast op&#34;,1.502,3,0.5006667,1.5</span>
+<span style="color:#75715e">## &#34;slow op&#34;,1.001,1,1.001,1</span>
+
+</code></pre></div><p>The package has some other utilities you may or may not care about, like this</p>
+<div class="highlight"><pre style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-r" data-lang="r"><span style="color:#a6e22e">readable.time</span>(<span style="color:#ae81ff">2500</span>)
+<span style="color:#75715e">## 41.667 minutes </span>
+</code></pre></div><h3 id="fmlr">fmlr</h3>
+<p>I&rsquo;ve shown this package off a few times on this blog. And basically it&rsquo;s the reason this blog exists. But I still need to talk about this on its own at some point.</p>
+<p>Anyway, these days when I need to do something with matrix computing, I use <a href="https://hpcran.org/packages/fmlr/index.html">fmlr package</a>. More on that later I guess.</p>
+
+</div>
+
+<br>
+<p>
+<a href="/blog/2021/10/25/computing-eigenvalues-out-of-core/">← Computing Eigenvalues Out-of-Core</a>&nbsp;
+
+</p>
+<br>
+
+
+<p style="color:grey;font-size:12px"><small>
+© 2020-2021.
+Post content is <a href="http://creativecommons.org/licenses/by-sa/4.0/">CC-BY-SA</a>.
+Source code listings are <a href="http://creativecommons.org/publicdomain/zero/1.0/">CC0</a>.
+</small></p>
+
+<footer>
+  <script type="text/x-mathjax-config">
+    MathJax.Hub.Config({
+      tex2jax: {
+        inlineMath: [ ['$','$'], ["\\(","\\)"] ],
+        processEscapes: true
+      }
+    });
+  </script>
+  <script type="text/javascript" src="https://cdn.mathjax.org/mathjax/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML"></script>
+</footer>
+</body>
+</html>
+

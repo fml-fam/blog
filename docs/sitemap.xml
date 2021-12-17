@@ -3,32 +3,37 @@
   xmlns:xhtml="http://www.w3.org/1999/xhtml">
   
   <url>
+    <loc>https://fml-fam.github.io/blog/</loc>
+    <lastmod>2021-12-17T00:00:00+00:00</lastmod>
+  </url>
+  
+  <url>
+    <loc>https://fml-fam.github.io/blog/2021/12/17/my-favorite-r-packages/</loc>
+    <lastmod>2021-12-17T00:00:00+00:00</lastmod>
+  </url>
+  
+  <url>
+    <loc>https://fml-fam.github.io/blog/post/</loc>
+    <lastmod>2021-12-17T00:00:00+00:00</lastmod>
+  </url>
+  
+  <url>
+    <loc>https://fml-fam.github.io/blog/tags/r/</loc>
+    <lastmod>2021-12-17T00:00:00+00:00</lastmod>
+  </url>
+  
+  <url>
+    <loc>https://fml-fam.github.io/blog/tags/</loc>
+    <lastmod>2021-12-17T00:00:00+00:00</lastmod>
+  </url>
+  
+  <url>
     <loc>https://fml-fam.github.io/blog/2021/10/25/computing-eigenvalues-out-of-core/</loc>
     <lastmod>2021-10-25T00:00:00+00:00</lastmod>
   </url>
   
   <url>
-    <loc>https://fml-fam.github.io/blog/</loc>
-    <lastmod>2021-10-25T00:00:00+00:00</lastmod>
-  </url>
-  
-  <url>
     <loc>https://fml-fam.github.io/blog/tags/math/</loc>
-    <lastmod>2021-10-25T00:00:00+00:00</lastmod>
-  </url>
-  
-  <url>
-    <loc>https://fml-fam.github.io/blog/post/</loc>
-    <lastmod>2021-10-25T00:00:00+00:00</lastmod>
-  </url>
-  
-  <url>
-    <loc>https://fml-fam.github.io/blog/tags/r/</loc>
-    <lastmod>2021-10-25T00:00:00+00:00</lastmod>
-  </url>
-  
-  <url>
-    <loc>https://fml-fam.github.io/blog/tags/</loc>
     <lastmod>2021-10-25T00:00:00+00:00</lastmod>
   </url>
   

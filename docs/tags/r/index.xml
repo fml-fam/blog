@@ -7,10 +7,20 @@
     <generator>Hugo -- gohugo.io</generator>
     <language>en-us</language>
     <copyright>This work is licensed under a Creative Commons Attribution-ShareAlike 4.0 International License.</copyright>
-    <lastBuildDate>Mon, 25 Oct 2021 00:00:00 +0000</lastBuildDate>
+    <lastBuildDate>Fri, 17 Dec 2021 00:00:00 +0000</lastBuildDate>
     
 	<atom:link href="https://fml-fam.github.io/blog/tags/r/index.xml" rel="self" type="application/rss+xml" />
     
+    
+    <item>
+      <title>My Favorite R Packages</title>
+      <link>https://fml-fam.github.io/blog/2021/12/17/my-favorite-r-packages/</link>
+      <pubDate>Fri, 17 Dec 2021 00:00:00 +0000</pubDate>
+      
+      <guid>https://fml-fam.github.io/blog/2021/12/17/my-favorite-r-packages/</guid>
+      <description>I&amp;rsquo;ll warn you right off the bat, this is going to be an unusual list. Maybe I&amp;rsquo;m just an unusual guy. For sure there are some packages here that you&amp;rsquo;ve heard of. But I&amp;rsquo;m also pretty sure that there are some you haven&amp;rsquo;t.
+Most of these are packages I use on a daily basis, with a few on a weekly basis. There are a few that I don&amp;rsquo;t use that often, but I consider them categorically the best at what they do and sometimes I do those things.</description>
+    </item>
     
     <item>
       <title>Computing Eigenvalues Out-of-Core</title>
